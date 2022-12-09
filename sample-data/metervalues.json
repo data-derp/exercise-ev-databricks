@@ -1,0 +1,26 @@
+{
+  "connectorId": 1,
+  "meterValue": [
+    {
+      "timestamp": "2022-12-09T11:05:22.840839",
+      "sampledValue": [
+        {
+          "value": "10",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Power.Active.Import",
+          "phase": "L1",
+          "location": "Outlet",
+          "unit": "kWh"
+        },
+        {
+          "value": "628",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Energy.Active.Import.Register",
+          "phase": "L1",
+          "location": "Outlet",
+          "unit": "Wh"
+        }
+      ]
+    }
