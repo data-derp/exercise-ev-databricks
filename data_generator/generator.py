@@ -9,34 +9,34 @@ from ocpp.v16.datatypes import SampledValue, MeterValue
 from ocpp.v16.enums import ReadingContext, Location, ValueFormat, Phase, Measurand, UnitOfMeasure
 
 
-def create_heartbeat(**kwargs) -> Dict:
-    return call.HeartbeatPayload().__dict__
+def create_heartbeat(**kwargs) -> (Dict, str, Callable):
+    return call.HeartbeatPayload().__dict__, "Heartbeat", lambda x: {}
 
 
-def create_boot_notification(charge_point_id: str, **kwargs) -> Dict:
+def create_boot_notification(charge_point_id: str, **kwargs) -> (Dict, str, Callable):
     return call.BootNotificationPayload(
-        charge_point_model="some awesome model",
-        charge_point_vendor="some awesome vendor",
+        charge_point_model=f"BB-{random.randint(0,5)}",
+        charge_point_vendor="ChargeAwesome LLC",
         charge_point_serial_number=charge_point_id
-    ).__dict__
+    ).__dict__, "BootNotification", lambda x: {}
 
 
-def create_start_transaction(connector_id: int, rfid: str, **kwargs) -> Dict:
+def create_start_transaction(connector_id: int, rfid: str, **kwargs) -> (Dict, str, Callable):
     return call.StartTransactionPayload(
         connector_id=connector_id,
         id_tag=rfid,
         meter_start=random.randint(1,60),
         timestamp=datetime.now(tz=pytz.utc).isoformat()
-    ).__dict__
+    ).__dict__, "StartTransaction", lambda x: {"timestamp": x}
 
 
-def create_stop_transaction(transaction_id: int, rfid: str, meter_stop_wh: int, **kwargs) -> Dict:
+def create_stop_transaction(transaction_id: int, rfid: str, meter_stop_wh: int, **kwargs) -> (Dict, str, Callable):
     return call.StopTransactionPayload(
         transaction_id=transaction_id,
         id_tag=rfid,
         meter_stop=meter_stop_wh,
         timestamp=datetime.now(tz=pytz.utc).isoformat()
-    ).__dict__
+    ).__dict__, "StopTransaction", lambda x: {"timestamp": x}
 
 
 def _add_noise(base: float) -> str:
@@ -53,7 +53,7 @@ def _add_ceiling_noise_to(base: float) -> str:
     return "{:0.2f}".format(value)
 
 
-def create_meter_values(transaction_id: int, connector_id: int, current_meter_values: Optional[Dict], **kwargs) -> Dict:
+def create_meter_values(transaction_id: int, connector_id: int, current_meter_values: Optional[Dict], **kwargs) -> (Dict, str, Callable):
     if current_meter_values is not None:
         sample_value = list(filter(lambda x: x["measurand"] in [Measurand.energy_active_import_register], current_meter_values["meter_value"][0]["sampled_value"]))
         prev_total_charge = float(sample_value[0]["value"])
@@ -242,7 +242,7 @@ def create_meter_values(transaction_id: int, connector_id: int, current_meter_va
     ]
 
     meter_value = MeterValue(
-        timestamp=str(create_timestamp.isoformat()),
+        timestamp=str(datetime.now(tz=pytz.utc).isoformat()),
         sampled_value=[json.loads(json.dumps(v.__dict__)) for v in sampled_values]
     )
 
@@ -252,5 +252,6 @@ def create_meter_values(transaction_id: int, connector_id: int, current_meter_va
         meter_value=[json.loads(json.dumps(meter_value.__dict__))]
     )
 
-    return meter_values.__dict__
+
+    return meter_values.__dict__, "MeterValues", lambda x: {"meter_value": [{"timestamp": x} | {"sampled_value": meter_value.__dict__["sampled_value"]}]}
 
