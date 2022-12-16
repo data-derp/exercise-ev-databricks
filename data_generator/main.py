@@ -1,13 +1,11 @@
+import os
 from datetime import timedelta, datetime
 
 from generator import *
 import random
-from time import sleep
-
-sleep_time = 1
+import pandas as pd
 
 TRANSACTION_CACHE = 0
-
 
 def _generate_config(charge_point_id: str, base_time: datetime, num_transactions: int) -> Dict:
     return {
@@ -29,7 +27,6 @@ def _decorate(charge_point_id: str, action: str, body: Dict, timestamp: datetime
         "action": action,
         "body": body
     }
-    print(data)
     return data
 
 
@@ -92,6 +89,8 @@ charge_point_ids = [
 def time_tick_value(tick: int):
     return timedelta(seconds=120*tick)
 
+
+collect=[]
 for x in list(map(lambda x: _generate_config(**x), charge_point_ids)):
 
     base = [
@@ -117,3 +116,13 @@ for x in list(map(lambda x: _generate_config(**x), charge_point_ids)):
                 body=_update_body_with_timestamp(body=r[0], update_func=r[2], new_datetime=new_datetime),
                 timestamp=new_datetime
             )]
+
+    collect = collect + result
+
+
+
+if not os.path.exists("out"):
+    os.mkdir("out")
+
+df = pd.DataFrame.from_records(collect, columns=collect[0].keys())
+df.to_csv("out/data.csv", index=False)
