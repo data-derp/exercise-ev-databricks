@@ -18,6 +18,7 @@
 # MAGIC   * Time Conversion
 # MAGIC   * Windows and Rows
 # MAGIC   * Cleanup
+# MAGIC   * Write Data (JSON, CSV)
 # MAGIC * Data Visualisation
 # MAGIC   * Visualise it!
 
@@ -400,6 +401,7 @@ def test_most_recent_message_of_charge_point():
     result = input_df.transform(most_recent_message_of_charge_point)
     assert result.count() == 2
     assert result.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp", "rn"]
+    print("All tests pass! :)")
     
 test_most_recent_message_of_charge_point()
 
@@ -472,6 +474,7 @@ def test_cleanup():
     result = input_df.transform(cleanup)
     assert result.count() == 2
     assert result.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp"]
+    print("All tests pass! :)")
     
 test_cleanup()
     
@@ -491,13 +494,121 @@ final_df.show()
 # COMMAND ----------
 
 from pyspark.sql.types import IntegerType
+from datetime import datetime
 
 def test_final():
     assert final_df.count() == 5
-    assert final_df.select("charge_point_id").
-    assert result.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp"]
+    assert [ x["charge_point_id"] for x in final_df.select("charge_point_id").collect()] == ['AL1000', 'AL2000', 'AL3000', 'AL4000', 'AL5000']
+    assert [x.converted_timestamp for x in final_df.select("converted_timestamp").collect()] == [
+        datetime(2022, 10, 3, 2, 30, 23, 337), 
+        datetime(2022, 10, 3, 3, 3, 35, 254), 
+        datetime(2022, 12, 11, 7, 9, 47, 236), 
+        datetime(2022, 12, 5, 8, 43, 55, 432), 
+        datetime(2022, 12, 16, 13, 49, 4, 478389)
+    ]
+    assert final_df.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp"]
+    print("All tests pass! :)")
     
-test_cleanup()
+test_final()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Write Data
+# MAGIC There are multiple output formats that Spark can write to, such as JSON, CSV, Parquet, Avro, ORC, and Delta Lake, and Spark can do so in very similar ways:
+# MAGIC 
+# MAGIC | Format | Call |
+# MAGIC | --- | --- |
+# MAGIC | JSON | dataframe.write.json("awesome-filename.json") |
+# MAGIC | CSV | dataframe.write.csv("awesome-filename.csv") |
+# MAGIC | Parquet | dataframe.write.parquet("awesome-filename.parquet") |
+# MAGIC 
+# MAGIC ...and so on and so forth.
+# MAGIC 
+# MAGIC If you've worked with CSV files before, you know that there's a few eccentricities to keep an eye on:
+# MAGIC * setting a header
+# MAGIC * setting a delimiter
+# MAGIC * handling of quotes
+# MAGIC 
+# MAGIC Luckily, the [Dataframe CSV Writer](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrameWriter.csv.html) can take all of those as options, as can the Dataframe writers of the other formats.
+# MAGIC 
+# MAGIC As we are at a "save" or "handoff" point, now is a good time to write our data to a format that is compatible with consumers. Let's say, you have two consumers:
+# MAGIC * an Analytics team asking for an API endpoint that serves JSON
+# MAGIC * the Charge Point maintenance team asking for a CSV of offline Charge Points to check up on
+# MAGIC 
+# MAGIC In this case, we need both a JSON file and a CSV file to distribute to its respective consumers.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC 1. **Write to CSV.** Write the `final_df` to a csv file with headers and comma (`,`) delimiters using the `.option` method.
+
+# COMMAND ----------
+
+def write_to_csv():
+    ### YOUR CODE HERE
+    final_df
+    ###
+    
+write_to_csv()
+
+# COMMAND ----------
+
+############### SOLUTION #################
+
+def write_to_csv():
+    ### YOUR CODE HERE
+    final_df.write.option("header", True).option("delimiter", ",").csv(f"{working_directory}/out-csv/")
+    ###
+
+write_to_csv()
+
+# COMMAND ----------
+
+def test_write_to_csv():
+    files = dbutils.fs.ls(f"{working_directory}/out-csv/")
+    files_df = spark.createDataFrame(files)
+    assert files_df.filter(files_df.name == "_SUCCESS").count() == 1
+    assert files_df.filter(files_df.name.startswith("part-")).filter(files_df.name.endswith(".csv")).count() == 1
+    print("All tests pass! :)")
+    
+test_write_to_csv()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC 2. **Write to JSON.**
+
+# COMMAND ----------
+
+def write_to_json():
+    ### YOUR CODE HERE
+    final_df
+    ###
+    
+write_to_json()
+
+# COMMAND ----------
+
+############### SOLUTION #################
+
+def write_to_json():
+    ### YOUR CODE HERE
+    final_df.write.json(f"{working_directory}/out-json/")
+    ###
+
+write_to_json()
+
+# COMMAND ----------
+
+def test_write_to_json():
+    files = dbutils.fs.ls(f"{working_directory}/out-json")
+    files_df = spark.createDataFrame(files)
+    assert files_df.filter(files_df.name == "_SUCCESS").count() == 1
+    assert files_df.filter(files_df.name.startswith("part-")).filter(files_df.name.endswith(".json")).count() == 1
+    print("All tests pass! :)")
+    
+test_write_to_json()
 
 # COMMAND ----------
 
@@ -510,7 +621,7 @@ test_cleanup()
 # MAGIC ### EXERCISE: Visualise It!
 # MAGIC Recall that our task was to show the latest timestamp of each Charge Point. In this case, it doesn't make too much sense to introduce a colourful graph; in fact, a list or table would be just fine. Looking at our data, the two relevant columns are `charge_point_id` and `write_timestamp`.
 # MAGIC 
-# MAGIC Use the [display function](https://docs.databricks.com/notebooks/visualizations/index.html) to show only the `charge_point_id` and `write_timestamp` columns
+# MAGIC Use the [display function](https://docs.databricks.com/notebooks/visualizations/index.html) to show only the `charge_point_id` and `write_timestamp` columns from the `final_df` DataFrame.
 
 # COMMAND ----------
 
