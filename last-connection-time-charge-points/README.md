@@ -7,7 +7,7 @@
 
 4. Import the `Last Connection Time of Charge Points.py` notebook: 
    ```
-   https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/master/last-connection-time-charge-point/Last%20Connection%20Time%20of%20Charge%20Points.py
+   https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/master/last-connection-time-charge-points/Last%20Connection%20Time%20of%20Charge%20Points.py
    ```
 
    ![databricks-import-url](https://github.com/data-derp/documentation/blob/master/databricks/assets/databricks-import-url.png?raw=true)
@@ -20,6 +20,6 @@
 
 7. Once you're done, import the solutions `Last Connection Time of Charge Points - Solutions.py` notebook to check your answers:
    ```bash
-   https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/master/last-connection-time-charge-point/Last%20Connection%20Time%20of%20Charge%20Point%20-%20Solutions.py
+   https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/main/last-connection-time-charge-points/Last%20Connection%20Time%20of%20Charge%20Points%20-%20Solutions.py
    ```
 
