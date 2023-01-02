@@ -10,6 +10,20 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Contents
+# MAGIC * Set up this Notebook
+# MAGIC * Data Ingestion
+# MAGIC   * Read Data with a Schema
+# MAGIC * Data Transformation
+# MAGIC   * Time Conversion
+# MAGIC   * Windows and Rows
+# MAGIC   * Cleanup
+# MAGIC * Data Visualisation
+# MAGIC   * Visualise it!
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Set up this Notebook
 # MAGIC Before we get started, we need to quickly set up this notebook by installing a helpers, cleaning up your unique working directory (as to not clash with others working in the same space), and setting some variables. Run the following cells using shift + enter. **Note** that if your cluster shuts down, you will need to re-run the cells in this section.
 
@@ -41,9 +55,14 @@ helpers.clean_working_directory()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Read Data
+# MAGIC ## DATA INGESTION
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Read Data
 # MAGIC 
-# MAGIC ### Context
+# MAGIC #### Context
 # MAGIC The first step in handling data in Spark (especially if the data exists already) is to read that data into Spark as a DataFrame. Data can come in various formats (CSV, JSON, Parquet, Avro, Delta Lake, etc) and Spark has several API methods to read these specific formats.
 # MAGIC 
 # MAGIC | Format | Example |
@@ -166,13 +185,19 @@ def test_create_dataframe():
     assert result is not None
     assert result.columns == ['charge_point_id', 'write_timestamp', 'action', 'body']
     assert result.count() == 484
+    print("All tests pass! :)")
     
-test_create_dataframe
+test_create_dataframe()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Time Conversion
+# MAGIC ## DATA TRANSFORMATION
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Time Conversion
 
 # COMMAND ----------
 
@@ -267,7 +292,7 @@ def test_convert_to_timestamp():
         StructField('converted_timestamp', TimestampType(), True)
     ])
     assert result.schema == expected_schema
-    
+    print("All tests pass! :)")
     
 test_convert_to_timestamp()
 
@@ -285,7 +310,7 @@ df.transform(convert_to_timestamp).sort(col("converted_timestamp").desc()).show(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Windows and Rows
+# MAGIC ### EXERCISE: Windows and Rows
 # MAGIC In reality, we actually need the most recent message PER distinct Charge Point ID. We can use a GroupBy statement, Windowing, OrderBy, and Sorting in order to achieve this. 
 
 # COMMAND ----------
@@ -381,7 +406,7 @@ test_most_recent_message_of_charge_point()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Cleanup
+# MAGIC ### EXERCISE: Cleanup
 # MAGIC Hooray! We now have the list of Charge Points with the timestamp of their most recent message. However, did you notice that there's this weird `rn` column leftover from the last transformation?
 
 # COMMAND ----------
@@ -477,7 +502,12 @@ test_cleanup()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Visualise It!
+# MAGIC ## DATA VISUALISATION
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Visualise It!
 # MAGIC Recall that our task was to show the latest timestamp of each Charge Point. In this case, it doesn't make too much sense to introduce a colourful graph; in fact, a list or table would be just fine. Looking at our data, the two relevant columns are `charge_point_id` and `write_timestamp`.
 # MAGIC 
 # MAGIC Use the [display function](https://docs.databricks.com/notebooks/visualizations/index.html) to show only the `charge_point_id` and `write_timestamp` columns
