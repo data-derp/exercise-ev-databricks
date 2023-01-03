@@ -48,8 +48,8 @@ def _add_noise(base: float) -> str:
 
 
 def _add_ceiling_noise_to(base: float) -> str:
-    diff = random.uniform(0.05, 0.08)
-    value = base + random.uniform((float(base) + 0.1), (float(base) + 0.1) * (1.0 + diff))
+    diff = random.uniform(5.0, 8.0)
+    value = base + diff
     return "{:0.2f}".format(value)
 
 
@@ -58,7 +58,8 @@ def create_meter_values(transaction_id: int, connector_id: int, current_meter_va
         sample_value = list(filter(lambda x: x["measurand"] in [Measurand.energy_active_import_register], current_meter_values["meter_value"][0]["sampled_value"]))
         prev_total_charge = float(sample_value[0]["value"])
     else:
-        prev_total_charge = float(0)
+        print("current meter values is none")
+        prev_total_charge = random.uniform(0, 3)
 
     sampled_values = [
         SampledValue(

@@ -37,9 +37,14 @@ def create_transaction(connector_id: int, rfid: str):
 
     charge_duration = random.randint(3, 25)
     current_meter_values = None
-    transaction_ongoing = [create_meter_values(transaction_id=TRANSACTION_CACHE, connector_id=x["connector_id"],
-                                               current_meter_values=current_meter_values) for i in
-                           range(charge_duration)]
+
+    transaction_ongoing = []
+    for i in range(charge_duration):
+        meter_value = create_meter_values(transaction_id=TRANSACTION_CACHE, connector_id=x["connector_id"],
+                            current_meter_values=current_meter_values)
+        transaction_ongoing = transaction_ongoing + [meter_value]
+        current_meter_values = meter_value[0]
+
 
     last_meter_reading = list(filter(lambda x: x["measurand"] in [Measurand.energy_active_import_register],
                                      transaction_ongoing[-1][0]["meter_value"][0]["sampled_value"]))
