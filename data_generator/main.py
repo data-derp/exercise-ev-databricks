@@ -126,3 +126,35 @@ if not os.path.exists("out"):
 
 df = pd.DataFrame.from_records(collect, columns=collect[0].keys())
 df.to_csv("out/data.csv", index=False)
+
+def rebuild_transctions_table():
+    start_transactions_idx = df[df['action']=="StartTransaction"].index.values.astype(int)
+    df_start_transactions = df.iloc[start_transactions_idx]
+    df_start_transactions['id'] = range(0, len(start_transactions_idx))
+    df_start_transactions['new_body'] = df_start_transactions['body'].apply(json.loads)
+    df_start_transactions_exploded = pd\
+        .json_normalize(df_start_transactions.to_dict(orient="records"))\
+        .rename(columns={
+                "new_body.meter_start": "meter_start",
+                "new_body.timestamp": "timestamp",
+                "new_body.id_tag": "id_tag",
+            })
+
+    df_start_transactions_selected = df_start_transactions_exploded[["id", "charge_point_id", "id_tag", "timestamp"]]
+
+    meter_values_idx = [ x + 1 for x in start_transactions_idx ]
+    df_meter_values = df.iloc[meter_values_idx]
+    df_meter_values['id'] = range(0, len(start_transactions_idx))
+    df_meter_values['new_body'] = df_meter_values['body'].apply(json.loads)
+    df_meter_values_exploded = pd\
+        .json_normalize(df_meter_values.to_dict(orient="records"))\
+        .rename(columns={
+                "new_body.transaction_id": "transaction_id",
+            })
+    df_meter_values_selected = df_meter_values_exploded[["id", "transaction_id"]]
+
+    transactions_df = df_start_transactions_selected.join(df_meter_values_selected, on='id', how='left', lsuffix="_st")
+    cleaned_transactions_df = transactions_df.drop("id", axis=1).drop("id_st", axis=1)
+    cleaned_transactions_df.to_csv("out/transactions.csv", index=False)
+
+rebuild_transctions_table()
