@@ -113,7 +113,7 @@ for x in list(map(lambda x: _generate_config(**x), charge_point_ids)):
             _decorate(
                 charge_point_id=x["charge_point_id"],
                 action=r[1],
-                body=_update_body_with_timestamp(body=r[0], update_func=r[2], new_datetime=new_datetime),
+                body=json.dumps(_update_body_with_timestamp(body=r[0], update_func=r[2], new_datetime=new_datetime)),
                 timestamp=new_datetime
             )]
 
