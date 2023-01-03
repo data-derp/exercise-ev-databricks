@@ -34,7 +34,7 @@ def create_stop_transaction(transaction_id: int, rfid: str, meter_stop_wh: int, 
     return call.StopTransactionPayload(
         transaction_id=transaction_id,
         id_tag=rfid,
-        meter_stop=meter_stop_wh,
+        meter_stop=round(float(meter_stop_wh)),
         timestamp=datetime.now(tz=pytz.utc).isoformat()
     ).__dict__, "StopTransaction", lambda x: {"timestamp": x}
 
