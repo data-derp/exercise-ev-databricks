@@ -141,6 +141,7 @@ def rebuild_transctions_table():
             })
 
     df_start_transactions_selected = df_start_transactions_exploded[["id", "charge_point_id", "id_tag", "timestamp"]]
+    df_start_transactions_selected = df_start_transactions_selected.rename(columns={'timestamp': 'start_timestamp'})
 
     meter_values_idx = [ x + 1 for x in start_transactions_idx ]
     df_meter_values = df.iloc[meter_values_idx]
