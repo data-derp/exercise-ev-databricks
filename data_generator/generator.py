@@ -30,11 +30,11 @@ def create_start_transaction(connector_id: int, rfid: str, **kwargs) -> (Dict, s
     ).__dict__, "StartTransaction", lambda x: {"timestamp": x}
 
 
-def create_stop_transaction(transaction_id: int, rfid: str, meter_stop_wh: int, **kwargs) -> (Dict, str, Callable):
+def create_stop_transaction(transaction_id: int, rfid: str, **kwargs) -> (Dict, str, Callable):
     return call.StopTransactionPayload(
         transaction_id=transaction_id,
         id_tag=rfid,
-        meter_stop=round(float(meter_stop_wh)),
+        meter_stop=random.randint(25924, 38891),
         timestamp=datetime.now(tz=pytz.utc).isoformat()
     ).__dict__, "StopTransaction", lambda x: {"timestamp": x}
 

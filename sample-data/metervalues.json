@@ -1,26 +1,191 @@
 {
-  "connectorId": 1,
-  "meterValue": [
+  "connector_id": 2,
+  "meter_value": [
     {
-      "timestamp": "2022-12-09T11:05:22.840839",
-      "sampledValue": [
+      "timestamp": "2022-10-02T15:38:17.000345+00:00",
+      "sampled_value": [
         {
-          "value": "10",
+          "value": "0.00",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": "L1-N",
+          "location": "Outlet",
+          "unit": "V"
+        },
+        {
+          "value": "11.21",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Current.Import",
+          "phase": "L1",
+          "location": "Outlet",
+          "unit": "A"
+        },
+        {
+          "value": "3205.95",
           "context": "Sample.Periodic",
           "format": "Raw",
           "measurand": "Power.Active.Import",
           "phase": "L1",
           "location": "Outlet",
-          "unit": "kWh"
+          "unit": "W"
         },
         {
-          "value": "628",
+          "value": "205.70",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": "L2-N",
+          "location": "Outlet",
+          "unit": "V"
+        },
+        {
+          "value": "14.30",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Current.Import",
+          "phase": "L2",
+          "location": "Outlet",
+          "unit": "A"
+        },
+        {
+          "value": "3134.50",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Power.Active.Import",
+          "phase": "L2",
+          "location": "Outlet",
+          "unit": "W"
+        },
+        {
+          "value": "210.91",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": "L3-N",
+          "location": "Outlet",
+          "unit": "V"
+        },
+        {
+          "value": "16.27",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Current.Import",
+          "phase": "L3",
+          "location": "Outlet",
+          "unit": "A"
+        },
+        {
+          "value": "3962.41",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Power.Active.Import",
+          "phase": "L3",
+          "location": "Outlet",
+          "unit": "W"
+        },
+        {
+          "value": "235.42",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": null,
+          "location": "Outlet",
+          "unit": "Wh"
+        },
+        {
+          "value": "13.85",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": "L1-N",
+          "location": "Outlet",
+          "unit": "V"
+        },
+        {
+          "value": "3865.44",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Current.Import",
+          "phase": "L1",
+          "location": "Outlet",
+          "unit": "A"
+        },
+        {
+          "value": "6856.31",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Power.Active.Import",
+          "phase": "L1",
+          "location": "Outlet",
+          "unit": "W"
+        },
+        {
+          "value": "0.00",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": "L2-N",
+          "location": "Outlet",
+          "unit": "V"
+        },
+        {
+          "value": "3.59",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Current.Import",
+          "phase": "L2",
+          "location": "Outlet",
+          "unit": "A"
+        },
+        {
+          "value": "874.57",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Power.Active.Import",
+          "phase": "L2",
+          "location": "Outlet",
+          "unit": "W"
+        },
+        {
+          "value": "183.68",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Voltage",
+          "phase": "L3-N",
+          "location": "Outlet",
+          "unit": "V"
+        },
+        {
+          "value": "3.57",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Current.Import",
+          "phase": "L3",
+          "location": "Outlet",
+          "unit": "A"
+        },
+        {
+          "value": "930.20",
+          "context": "Sample.Periodic",
+          "format": "Raw",
+          "measurand": "Power.Active.Import",
+          "phase": "L3",
+          "location": "Outlet",
+          "unit": "W"
+        },
+        {
+          "value": "6.12",
           "context": "Sample.Periodic",
           "format": "Raw",
           "measurand": "Energy.Active.Import.Register",
-          "phase": "L1",
+          "phase": null,
           "location": "Outlet",
           "unit": "Wh"
         }
       ]
     }
+  ],
+  "transaction_id": 1
+}

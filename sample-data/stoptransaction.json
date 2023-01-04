@@ -1,6 +1,8 @@
 {
-  "meterStop": 50,
-  "timestamp": "2022-12-09T12:05:22.840064",
-  "transactionId": 357,
-  "idTag": "12345"
+  "meter_stop": 12610,
+  "timestamp": "2022-10-02T16:14:17.000345+00:00",
+  "transaction_id": 1,
+  "reason": null,
+  "id_tag": "6216963131612427643",
+  "transaction_data": null
 }

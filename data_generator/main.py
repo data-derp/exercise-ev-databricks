@@ -45,13 +45,8 @@ def create_transaction(connector_id: int, rfid: str):
         transaction_ongoing = transaction_ongoing + [meter_value]
         current_meter_values = meter_value[0]
 
-
-    last_meter_reading = list(filter(lambda x: x["measurand"] in [Measurand.energy_active_import_register],
-                                     transaction_ongoing[-1][0]["meter_value"][0]["sampled_value"]))
-
     transaction_stop = [
-        create_stop_transaction(transaction_id=TRANSACTION_CACHE, rfid=x["rfid"],
-                                meter_stop_wh=last_meter_reading[0]["value"])
+        create_stop_transaction(transaction_id=TRANSACTION_CACHE, rfid=x["rfid"])
     ]
 
     return transactions_start + transaction_ongoing + transaction_stop

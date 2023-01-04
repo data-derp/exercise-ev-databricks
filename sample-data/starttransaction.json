@@ -1,6 +1,7 @@
 {
-  "connectorId": 1,
-  "idTag": "12345",
-  "meterStart": 43,
-  "timestamp": "2022-12-09T12:05:22.838337"
+    "connector_id": 2,
+    "id_tag": "6216963131612427643",
+    "meter_start": 12500,
+    "timestamp": "2022-10-02T15:36:17.000345+00:00",
+    "reservation_id": null
 }
