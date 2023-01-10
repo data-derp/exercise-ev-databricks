@@ -53,7 +53,7 @@ helpers.clean_working_directory()
 
 # MAGIC %md
 # MAGIC ### The Final Shape of Data
-# MAGIC Before we start to ingest our data, it's helpful to know in what direction we're going. In order to answer the question of **How much total charge has been dispensed for every completed transaction for a given month?** we'll need to know a few pieces of information:
+# MAGIC Before we start to ingest our data, it's helpful to know in what direction we're going. In order to answer the question of **How much total charge has been dispensed for every completed transaction for a given month?** we'll need to know a few pieces of information (in green, below):
 # MAGIC * a Transaction ID to identify the transaction (obtained from a transaction record [we have yet to ingest this), MeterValues, and StopTransaction)
 # MAGIC * the Start Time (obtained from a transaction record) and End Time of the transaction (obtained from a StopTransaction)
 # MAGIC * the Duration of the transaction in seconds which can be calculated by the Start and End Times
@@ -1495,7 +1495,7 @@ def test_cleanup_extra_columns_unit():
     print("Transformed DF:")
     result.show()
     result.printSchema()
-    
+        
     result_count = result.count()
     expected_count = 1
     assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
@@ -1610,7 +1610,6 @@ display(df.filter(df.action == "MeterValues"))
 
 # COMMAND ----------
 
-########## SOLUTION ###########
 def convert_metervalues_to_json(input_df: DataFrame) -> DataFrame:
     
     ### YOUR CODE HERE
@@ -1757,12 +1756,1024 @@ test_convert_metervalues_to_json()
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### EXERCISE: Flatten MeterValues JSON
+# MAGIC 
+# MAGIC Similar to what we did for the StopTransaction Dataframe (it was a while ago!), we'll need to flatten out our data to more easily access/query our data. The MeterValues schema is a bit more complicated, involving 3 levels of nesting and arrays. From one record of MeterValue, we will multiple records as a result of flattening - each having the same `charge_point_id`, `write timestamp`, `action`, etc. For an example `MeterValue` such as the [sample JSON](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/metervalues.json), we should have as many records as we do `sampled_value`, which in this case is 20.
+# MAGIC 
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- body: string (nullable = true)
+# MAGIC  |-- new_body: struct (nullable = true)
+# MAGIC  |    |-- connector_id: integer (nullable = true)
+# MAGIC  |    |-- transaction_id: integer (nullable = true)
+# MAGIC  |    |-- meter_value: array (nullable = true)
+# MAGIC  |    |    |-- element: struct (containsNull = true)
+# MAGIC  |    |    |    |-- timestamp: string (nullable = true)
+# MAGIC  |    |    |    |-- sampled_value: array (nullable = true)
+# MAGIC  |    |    |    |    |-- element: struct (containsNull = true)
+# MAGIC  |    |    |    |    |    |-- value: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- context: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- format: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- measurand: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- phase: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- unit: string (nullable = true)
+# MAGIC  ```
+# MAGIC  
+# MAGIC  Target Flattened Schema
+# MAGIC  ```
+# MAGIC  root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- connector_id: integer (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- timestamp: string (nullable = true)
+# MAGIC  |-- value: string (nullable = true)
+# MAGIC  |-- context: string (nullable = true)
+# MAGIC  |-- format: string (nullable = true)
+# MAGIC  |-- phase: string (nullable = true)
+# MAGIC  |-- measurand: string (nullable = true)
+# MAGIC  |-- unit: string (nullable = true)
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC In this exercise, you'll use the `explode` function for array types and unpack maps using `*`. We've done the unpacking using `*` in a previous exercise, but `explode` is new AND fun! Let's quickly look at how it works:
+
+# COMMAND ----------
+
+# Define a DataFrame
+
+explode_example_data = [
+    (1,["giraffe","horse"]),
+    (2,["elephant","cat",]),
+    (3,["dog","cat"]),
+    (4,None),
+    (5,["rabbit","cat"])
+]
+
+explode_example_df = spark.createDataFrame(data=explode_example_data, schema = ["student_id","favourite_animals"])
+explode_example_df.printSchema()
+explode_example_df.show()
+
+# COMMAND ----------
+
+# Explode!
+
+explode_example_df_result = explode_example_df.select(explode_example_df.student_id,explode(explode_example_df.favourite_animals).alias("favourite_animal"))
+explode_example_df_result.printSchema()
+explode_example_df_result.show()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Now back to the exercise...
+
+# COMMAND ----------
+
+def flatten_metervalues_json(input_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df
+    ###
+    
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).show(5)
+
+# COMMAND ----------
+
+########### SOLUTION ############
+from pyspark.sql.functions import explode
+
+def flatten_metervalues_json(input_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df.select("*", col("new_body.*")) \
+        .withColumnRenamed("meter_value", "meter_value_og") \
+        .select("*", explode(col("meter_value_og")).alias("meter_value")) \
+        .select("*", col("meter_value.*")) \
+        .withColumnRenamed("sampled_value", "sampled_value_og") \
+        .select("*", explode(col("sampled_value_og")).alias("sampled_value")) \
+        .select("*", col("sampled_value.*")) \
+        .select(
+            col("charge_point_id"),
+            col("action"),
+            col("write_timestamp"),
+            col("connector_id"),
+            col("transaction_id"),
+            col("timestamp"),
+            col("value"),
+            col("context"),
+            col("format"),
+            col("phase"),
+            col("measurand"),
+            col("unit"),
+        )
+    ###
+    
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).show(5)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Let's run the unit test!
+
+# COMMAND ----------
+
+def test_flatten_metervalues_json_unit():
+    input_pandas = pd.DataFrame([
+        {
+            "charge_point_id": "AL1000",
+            "write_timestamp": "2022-10-02T15:30:17.000345+00:00",
+            "action": "MeterValues",
+            "body": '{"connector_id": 1, "meter_value": [{"timestamp": "2022-10-02T15:30:17.000345+00:00", "sampled_value": [{"value": "0.00", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L1-N", "location": "Outlet", "unit": "V"}, {"value": "13.17", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L1", "location": "Outlet", "unit": "A"}, {"value": "3663.49", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L1", "location": "Outlet", "unit": "W"}, {"value": "238.65", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L2-N", "location": "Outlet", "unit": "V"}, {"value": "14.28", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L2", "location": "Outlet", "unit": "A"}, {"value": "3086.46", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L2", "location": "Outlet", "unit": "W"}, {"value": "215.21", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L3-N", "location": "Outlet", "unit": "V"}, {"value": "14.63", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L3", "location": "Outlet", "unit": "A"}, {"value": "4014.47", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L3", "location": "Outlet", "unit": "W"}, {"value": "254.65", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": null, "location": "Outlet", "unit": "Wh"}, {"value": "11.68", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L1-N", "location": "Outlet", "unit": "V"}, {"value": "3340.61", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L1", "location": "Outlet", "unit": "A"}, {"value": "7719.95", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L1", "location": "Outlet", "unit": "W"}, {"value": "0.00", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L2-N", "location": "Outlet", "unit": "V"}, {"value": "3.72", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L2", "location": "Outlet", "unit": "A"}, {"value": "783.17", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L2", "location": "Outlet", "unit": "W"}, {"value": "242.41", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L3-N", "location": "Outlet", "unit": "V"}, {"value": "3.46", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L3", "location": "Outlet", "unit": "A"}, {"value": "931.52", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L3", "location": "Outlet", "unit": "W"}, {"value": "7.26", "context": "Sample.Periodic", "format": "Raw", "measurand": "Energy.Active.Import.Register", "phase": null, "location": "Outlet", "unit": "Wh"}]}], "transaction_id": 1}'
+        }
+    ])
+    
+    json_schema = StructType([
+        StructField("connector_id", IntegerType(), True), 
+        StructField("transaction_id", IntegerType(), True), 
+        StructField("meter_value", ArrayType(StructType([
+            StructField("timestamp", StringType(), True), 
+            StructField("sampled_value", ArrayType(StructType([
+                    StructField("value", StringType(), True), 
+                    StructField("context", StringType(), True), 
+                    StructField("format", StringType(), True), 
+                    StructField("measurand", StringType(), True), 
+                    StructField("phase", StringType(), True), 
+                    StructField("unit", StringType(), True)]), True), True)]), True), True)])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("body", StringType(), True),
+        ])
+    ).withColumn("new_body", from_json(col("body"), json_schema)).drop("body")
+    
+
+    result = input_df.transform(flatten_metervalues_json)
+    print("Transformed DF:")
+    result.show()
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 20
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('connector_id', IntegerType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('value', StringType(), True), 
+        StructField('context', StringType(), True), 
+        StructField('format', StringType(), True), 
+        StructField('phase', StringType(), True), 
+        StructField('measurand', StringType(), True), 
+        StructField('unit', StringType(), True)
+    ])
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_measurand = [ x.measurand for x in result.collect() ]
+    expected_measurand = [
+        "Voltage", 
+        "Current.Import", 
+        "Power.Active.Import", 
+        "Voltage", 
+        "Current.Import", 
+        "Power.Active.Import", 
+        "Voltage", 
+        "Current.Import", 
+        "Power.Active.Import", 
+        "Voltage", 
+        "Voltage", 
+        "Current.Import", 
+        "Power.Active.Import", 
+        "Voltage", 
+        "Current.Import", 
+        "Power.Active.Import", 
+        "Voltage", 
+        "Current.Import", 
+        "Power.Active.Import", 
+        "Energy.Active.Import.Register"
+    ]
+    assert result_measurand == expected_measurand, f"expected {expected_measurand}, but got {result_measurand}"
+    print("All tests passed! :)")
+    
+test_flatten_metervalues_json_unit()
+    
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC And now the E2E test!
+
+# COMMAND ----------
+
+def test_flatten_metervalues_json():
+    result = df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json)
+
+    print("Transformed DF:")
+    result.show(5)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 8080
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('connector_id', IntegerType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('value', StringType(), True), 
+        StructField('context', StringType(), True), 
+        StructField('format', StringType(), True), 
+        StructField('phase', StringType(), True), 
+        StructField('measurand', StringType(), True), 
+        StructField('unit', StringType(), True)
+    ])
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_measurand = set([ x.measurand for x in result.collect() ])
+    expected_measurand = set(['Current.Import', 'Energy.Active.Import.Register', 'Voltage', 'Power.Active.Import'])
+    assert result_measurand == expected_measurand, f"expected {expected_measurand}, but got {result_measurand}"
+    print("All tests passed! :)")
+    
+test_flatten_metervalues_json()
+    
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Most recent Energy.Active.Import.Register Reading
+# MAGIC In this exercise we'll be getting the most recent MeterValue reading for measurand `Energy.Active.Import.Register` for each `charge_point_id` and `transaction_id`.
+# MAGIC 
+# MAGIC Let's first check out the data before we start to transform it. Notice that there are quite a few `Energy.Active.Import.Register` per `charge_point_id` and `transaction_id`.
+# MAGIC 
+# MAGIC **Hint:** When sorting for the most recent, what column do you need to sort by? And what type does it need to be, in order to sort?
+# MAGIC 
+# MAGIC **Second hint:** `write_timestamp` represents the time at which the record was collected by the CSMS. As with most IoT devices, sometimes there is a network error which causes a build-up of events which are queued and then send en-masse once the network connection is back. Is there another column you can use?
+
+# COMMAND ----------
+
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).filter(col("measurand") == "Energy.Active.Import.Register").show()
+
+# COMMAND ----------
+
+from pyspark.sql.window import *
+from pyspark.sql.functions import row_number
+
+def get_most_recent_energy_active_import_register(input_df: DataFrame) -> DataFrame:
+    return input_df \
+        .filter(col("measurand") == "Energy.Active.Import.Register") \
+        
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).show(10)
+
+# COMMAND ----------
+
+########## SOLUTION ###########
+from pyspark.sql.window import *
+from pyspark.sql.functions import row_number
+
+def get_most_recent_energy_active_import_register(input_df: DataFrame) -> DataFrame:
+    return input_df \
+        .filter(col("measurand") == "Energy.Active.Import.Register") \
+        .withColumnRenamed("timestamp", "timestamp_og") \
+        .withColumn("timestamp", to_timestamp(col("timestamp_og"))) \
+        .withColumn("rn", row_number().over(Window.partitionBy("charge_point_id", "transaction_id").orderBy(col("timestamp").desc()))) \
+        .where(col("rn") == 1) \
+        .drop("rn", "timestamp_og")
+        
+
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).show(10)
+
+# COMMAND ----------
+
+def test_get_most_recent_energy_active_import_register_unit():
+    data = [
+    {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-02T15:30:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 1,
+        "timestamp": "2022-10-02T15:30:17.000345+00:00",
+        "value": "0.00",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": "L1-N",
+        "measurand": "Voltage",
+        "unit": "V"
+    },
+    {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-02T15:30:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 1,
+        "timestamp": "2022-10-02T15:30:17.000345+00:00",
+        "value": "7.26",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh"
+    },
+    {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-02T15:34:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 1,
+        "timestamp": "2022-10-02T15:32:17.000345+00:00",
+        "value": "1.00",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": "L1-N",
+        "measurand": "Voltage",
+        "unit": "V"
+    },
+    {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-02T15:34:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 1,
+        "timestamp": "2022-10-02T15:32:17.000345+00:00",
+        "value": "13.26",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh"
+    },
+    {
+        "charge_point_id": "AL2000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-11-23T04:23:46.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 2,
+        "timestamp": "2022-11-23T04:23:46.000345+00:00",
+        "value": "30.24",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh"
+    },
+    {
+        "charge_point_id": "AL2000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-06T12:34:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 3,
+        "timestamp": "2022-10-06T12:32:17.000345+00:00",
+        "value": "25.43",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh"
+    }]
+    
+    input_pandas = pd.DataFrame(data)
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("timestamp", StringType(), True), 
+            StructField("value", StringType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True)
+        ])
+    )
+    
+    result = input_df.transform(get_most_recent_energy_active_import_register)
+    result.show(5)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 3
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("value", StringType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True), 
+            StructField("timestamp", TimestampType(), True)
+        ])
+        
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_value = [ x.value for x in result.collect() ]
+    expected_value = ["13.26", "30.24", "25.43"]
+    assert result_value == expected_value, f"expected {expected_value}, but got {result_value}"
+    
+    result_measurand = set([ x.measurand for x in result.collect() ])
+    expected_measurand = set(["Energy.Active.Import.Register"])
+    assert result_measurand == expected_measurand, f"expected {expected_measurand}, but got {result_measurand}"
+        
+    print("All tests passed! :)")
+    
+test_get_most_recent_energy_active_import_register_unit()
+
+# COMMAND ----------
+
+def test_get_most_recent_energy_active_import_register():
+    result = df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register)
+    
+    result.show(10)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 27
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("value", StringType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True), 
+            StructField("timestamp", TimestampType(), True)
+        ])
+        
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_value = [ x.value for x in result.collect() ]
+    expected_value = ["79.20", "99.59", "142.81", "45.14", "137.19", "115.28", "75.09", "142.16", "103.34", "21.60", "103.51", "135.95", "148.62", "82.16", "160.31", "142.01", "142.02", "27.84", "43.08", "157.34", "150.96", "82.72", "136.40", "30.85", "35.16", "40.18", "70.84"]
+    assert result_value == expected_value, f"expected {expected_value}, but got {result_value}"
+    
+    result_measurand = set([ x.measurand for x in result.collect() ])
+    expected_measurand = set(["Energy.Active.Import.Register"])
+    assert result_measurand == expected_measurand, f"expected {expected_measurand}, but got {result_measurand}"
+    
+    print("All tests passed! :)")
+
+test_get_most_recent_energy_active_import_register()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Cast value to Double
+# MAGIC Notice that the `value` column a string value right now. Since we know we'll be generating some visualisations (or handing this data off to someone else) later, it makes sense to convert that value from a string to a Double.
+# MAGIC 
+# MAGIC Current schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- connector_id: integer (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- value: string (nullable = true)              // <- this one!
+# MAGIC  |-- context: string (nullable = true)
+# MAGIC  |-- format: string (nullable = true)
+# MAGIC  |-- phase: string (nullable = true)
+# MAGIC  |-- measurand: string (nullable = true)
+# MAGIC  |-- unit: string (nullable = true)
+# MAGIC  |-- timestamp: timestamp (nullable = true)
+# MAGIC  ```
+# MAGIC 
+# MAGIC Use the `withColumn` and `cast` functions to convert the `value` column to a Double Type.
+# MAGIC 
+# MAGIC Target schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- connector_id: integer (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- value: double (nullable = true)
+# MAGIC  |-- context: string (nullable = true)
+# MAGIC  |-- format: string (nullable = true)
+# MAGIC  |-- phase: string (nullable = true)
+# MAGIC  |-- measurand: string (nullable = true)
+# MAGIC  |-- unit: string (nullable = true)
+# MAGIC  |-- timestamp: timestamp (nullable = true)
+# MAGIC  ```
+# MAGIC  ```
+
+# COMMAND ----------
+
+def cast_value_to_double(input_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df
+    ###
+    
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).transform(cast_value_to_double).printSchema()
+
+# COMMAND ----------
+
+########## SOLUTION ##########
+
+def cast_value_to_double(input_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df.withColumn("value", col("value").cast("double"))
+    ###
+
+df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).transform(cast_value_to_double).printSchema()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Let's run the unit test!
+
+# COMMAND ----------
+
+def test_cast_value_to_double_unit():
+    data = [
+      {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-02T15:34:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 1,
+        "value": "13.26",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh",
+        "timestamp": Timestamp(
+            "2022-10-02 15:32:17.000345"
+        )
+      },
+      {
+        "charge_point_id": "AL2000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-11-23T04:23:46.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 2,
+        "value": "30.24",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh",
+        "timestamp": Timestamp(
+            "2022-11-23 04:23:46.000345"
+        )
+      },
+      {
+        "charge_point_id": "AL2000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-06T12:34:17.000345+00:00",
+        "connector_id": 1,
+        "transaction_id": 3,
+        "value": "25.43",
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh",
+        "timestamp": Timestamp(
+            "2022-10-06 12:32:17.000345"
+        )
+      }
+    ]
+    
+    input_pandas = pd.DataFrame(data)
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("value", StringType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True), 
+            StructField("timestamp", TimestampType(), True)
+        ])
+    )
+    
+    result = input_df.transform(cast_value_to_double)
+    result.show(5)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 3
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("value", DoubleType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True), 
+            StructField("timestamp", TimestampType(), True)
+        ])
+        
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_value = [ x.value for x in result.collect() ]
+    expected_value = [13.26, 30.24, 25.43]
+    assert result_value == expected_value, f"expected {expected_value}, but got {result_value}"
+        
+    print("All tests passed! :)")
+   
+test_cast_value_to_double_unit()
+
+# COMMAND ----------
+
+def test_cast_value_to_double():
+    result = df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).transform(cast_value_to_double)
+    result.show(5)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 27
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("value", DoubleType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True), 
+            StructField("timestamp", TimestampType(), True)
+        ])
+        
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_value = [ x.value for x in result.collect() ]
+    expected_value = [79.2, 99.59, 142.81, 45.14, 137.19, 115.28, 75.09, 142.16, 103.34, 21.6, 103.51, 135.95, 148.62, 82.16, 160.31, 142.01, 142.02, 27.84, 43.08, 157.34, 150.96, 82.72, 136.4, 30.85, 35.16, 40.18, 70.84]
+    assert result_value == expected_value, f"expected {expected_value}, but got {result_value}"
+        
+    print("All tests passed! :)")
+   
+test_cast_value_to_double()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: All together now!
+# MAGIC We took a few turns and side-quests but our last side-quest left us with a MeterValues DataFrame that we can now join to the DataFrame that we joined between transactions and StopTransactions. Schema below:
+# MAGIC 
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- id_tag: string (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- stop_timestamp: timestamp (nullable = true)
+# MAGIC  |-- charge_duration_minutes: double (nullable = true)
+# MAGIC ```
+# MAGIC 
+# MAGIC All that's missing is to now join that DataFrame with the MeterValues DataFrame that we just curated and return a DataFrame that we can use to make some beautiful visualisations.
+# MAGIC 
+# MAGIC In this exercise, we will LEFT join the existing DataFrame with the new MeterValues DataFrame (that we just finished unpacking, exploding, and curating) and return a DataFrame that contains only the columns according to the below target schema:
+# MAGIC 
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- id_tag: string (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- stop_timestamp: timestamp (nullable = true)
+# MAGIC  |-- charge_duration_minutes: double (nullable = true)
+# MAGIC  |-- charge_dispensed_Wh: double (nullable = true)
+# MAGIC  ```
+
+# COMMAND ----------
+
+def join_transactions_with_meter_values(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df
+    ###
+    
+
+df_transactions \
+.transform(
+    join_transactions_with_stop_transactions,
+    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
+) \
+.transform(rename_timestamp_to_stop_timestamp) \
+.transform(convert_start_stop_timestamp_to_timestamp_type) \
+.transform(calculate_charge_duration_minutes) \
+.transform(cleanup_extra_columns) \
+.transform(
+    join_transactions_with_meter_values, 
+    df.filter(df.action == "MeterValues") \
+    .transform(convert_metervalues_to_json) \
+    .transform(flatten_metervalues_json) \
+    .transform(get_most_recent_energy_active_import_register) \
+    .transform(cast_value_to_double)
+).show()
+
+# COMMAND ----------
+
+########## SOLUTION ###########
+def join_transactions_with_meter_values(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df \
+        .join(join_df, input_df.transaction_id == join_df.transaction_id, "left") \
+        .select(input_df.transaction_id, input_df.charge_point_id, input_df.id_tag, input_df.start_timestamp, input_df.stop_timestamp, input_df.charge_duration_minutes, join_df.value.alias("charge_dispensed_Wh"))
+    ###
+    
+df_transactions \
+.transform(
+    join_transactions_with_stop_transactions,
+    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
+) \
+.transform(rename_timestamp_to_stop_timestamp) \
+.transform(convert_start_stop_timestamp_to_timestamp_type) \
+.transform(calculate_charge_duration_minutes) \
+.transform(cleanup_extra_columns) \
+.transform(
+    join_transactions_with_meter_values, 
+    df.filter(df.action == "MeterValues") \
+    .transform(convert_metervalues_to_json) \
+    .transform(flatten_metervalues_json) \
+    .transform(get_most_recent_energy_active_import_register) \
+    .transform(cast_value_to_double)
+).show()
+
+# COMMAND ----------
+
+def test_join_transactions_with_meter_values_unit():
+    transaction_data = [
+        {
+            "transaction_id": 1, 
+            "charge_point_id": "AL1000", 
+            "id_tag": "14902753768387952483", 
+            "start_timestamp": Timestamp("2022-10-01 13:23:34.000235"), 
+            "stop_timestamp": Timestamp("2022-10-02 15:56:17.000345"), 
+            "charge_duration_minutes": 1592.72
+        },
+        {
+            "transaction_id": 2, 
+            "charge_point_id": "AL1000", 
+            "id_tag": "14902753768387952483", 
+            "start_timestamp": Timestamp("2022-10-01 12:32:45.000236"), 
+            "stop_timestamp": Timestamp("2022-10-02 17:24:34.000574"), 
+            "charge_duration_minutes": 1731.82
+        }
+    ]
+    
+    input_transactions_pandas = pd.DataFrame(transaction_data)
+    input_transactions_df = spark.createDataFrame(
+        input_transactions_pandas,
+        StructType([
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("charge_point_id", StringType(), True), 
+            StructField("id_tag", StringType(), True), 
+            StructField("start_timestamp", TimestampType(), True),
+            StructField("stop_timestamp", TimestampType(), True),
+            StructField("charge_duration_minutes", DoubleType(), True),
+        ])
+    )
+    
+    meter_values_data = [
+      {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-02 15:56:17.000345",
+        "connector_id": 1,
+        "transaction_id": 1,
+        "value": 13.26,
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh",
+        "timestamp": Timestamp(
+            "2022-10-02 15:56:17.000345"
+        )
+      },
+      {
+        "charge_point_id": "AL1000",
+        "action": "MeterValues",
+        "write_timestamp": "2022-10-01 13:23:34.000235",
+        "connector_id": 1,
+        "transaction_id": 2,
+        "value": 30.24,
+        "context": "Sample.Periodic",
+        "format": "Raw",
+        "phase": None,
+        "measurand": "Energy.Active.Import.Register",
+        "unit": "Wh",
+        "timestamp": Timestamp(
+            "2022-10-01 13:23:34.000235"
+        )
+      }
+    ]
+    
+    input_meter_values_pandas = pd.DataFrame(meter_values_data)
+    input_meter_values_df = spark.createDataFrame(
+        input_meter_values_pandas,
+        StructType([
+            StructField("charge_point_id", StringType(), True), 
+            StructField("action", StringType(), True), 
+            StructField("write_timestamp", StringType(), True), 
+            StructField("connector_id", IntegerType(), True), 
+            StructField("transaction_id", IntegerType(), True), 
+            StructField("value", DoubleType(), True), 
+            StructField("context", StringType(), True), 
+            StructField("format", StringType(), True), 
+            StructField("phase", StringType(), True), 
+            StructField("measurand", StringType(), True), 
+            StructField("unit", StringType(), True), 
+            StructField("timestamp", TimestampType(), True)
+        ])
+    )
+    
+    result = input_transactions_df.transform(join_transactions_with_meter_values, input_meter_values_df)
+    result.show(5)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 2
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField("transaction_id", IntegerType(), True), 
+        StructField("charge_point_id", StringType(), True), 
+        StructField("id_tag", StringType(), True), 
+        StructField("start_timestamp", TimestampType(), True), 
+        StructField("stop_timestamp", TimestampType(), True), 
+        StructField("charge_duration_minutes", DoubleType(), True), 
+        StructField("charge_dispensed_Wh", DoubleType(), True)
+    ])
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    result_complete = result.toPandas().to_dict(orient="records")
+    expected_complete = [
+        {
+            "transaction_id": 1, 
+            "charge_point_id": "AL1000", 
+            "id_tag": "14902753768387952483", 
+            "start_timestamp": Timestamp("2022-10-01 13:23:34.000235"), 
+            "stop_timestamp": Timestamp("2022-10-02 15:56:17.000345"), 
+            "charge_duration_minutes": 1592.72,
+            "charge_dispensed_Wh": 13.26
+        },
+        {
+            "transaction_id": 2, 
+            "charge_point_id": "AL1000", 
+            "id_tag": "14902753768387952483", 
+            "start_timestamp": Timestamp("2022-10-01 12:32:45.000236"), 
+            "stop_timestamp": Timestamp("2022-10-02 17:24:34.000574"), 
+            "charge_duration_minutes": 1731.82,
+            "charge_dispensed_Wh": 30.24
+        }
+    ]
+    assert result_complete == expected_complete, f"expected {expected_complete}, but got {result_complete}"
+    
+    print("All tests passed! :)")
+
+test_join_transactions_with_meter_values_unit()
+
+# COMMAND ----------
+
+def test_join_transactions_with_meter_values():
+    result = df_transactions \
+        .transform(
+            join_transactions_with_stop_transactions,
+            df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
+        ) \
+        .transform(rename_timestamp_to_stop_timestamp) \
+        .transform(convert_start_stop_timestamp_to_timestamp_type) \
+        .transform(calculate_charge_duration_minutes) \
+        .transform(cleanup_extra_columns) \
+        .transform(
+            join_transactions_with_meter_values, 
+            df.filter(df.action == "MeterValues") \
+            .transform(convert_metervalues_to_json) \
+            .transform(flatten_metervalues_json) \
+            .transform(get_most_recent_energy_active_import_register) \
+            .transform(cast_value_to_double)
+        )
+    result.show(5)
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 27
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField("transaction_id", IntegerType(), True), 
+        StructField("charge_point_id", StringType(), True), 
+        StructField("id_tag", StringType(), True), 
+        StructField("start_timestamp", TimestampType(), True), 
+        StructField("stop_timestamp", TimestampType(), True), 
+        StructField("charge_duration_minutes", DoubleType(), True), 
+        StructField("charge_dispensed_Wh", DoubleType(), True)
+    ])
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    
+    print("All tests passed! :)")
+
+test_join_transactions_with_meter_values()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Reflect
+# MAGIC PHEW! That was a lot of work. Let's celebrate and have a look at our final DataFrame!
+
+# COMMAND ----------
+
+final_df = df_transactions \
+.transform(
+    join_transactions_with_stop_transactions,
+    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
+) \
+.transform(rename_timestamp_to_stop_timestamp) \
+.transform(convert_start_stop_timestamp_to_timestamp_type) \
+.transform(calculate_charge_duration_minutes) \
+.transform(cleanup_extra_columns) \
+.transform(
+    join_transactions_with_meter_values, 
+    df.filter(df.action == "MeterValues") \
+    .transform(convert_metervalues_to_json) \
+    .transform(flatten_metervalues_json) \
+    .transform(get_most_recent_energy_active_import_register) \
+    .transform(cast_value_to_double)
+)
+
+final_df.show()
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## DATA VISUALISATION
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Visualise It!
+# MAGIC ### EXERCISE: Charge Dispensed per Transaction Per Charge Point
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Export to CSV
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
