@@ -2760,20 +2760,77 @@ final_df.show()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Charge Dispensed per Transaction Per Charge Point
+# MAGIC ### EXERCISE: Export to CSV
+# MAGIC Since we want to report upon which charges happened for each `charge_point_id` over any given `month` or `year`, we need to partition our data by those three columns. Let's say, that for reporting reasons, we'll siphon all charges which stopped in a certain month/year to that month/year. This rule is in place to ensure that charges that cross a time boundary (e.g. charges that start at 23:30 at the end of January and stop at 01:00 on the first day of February) get grouped in a meaningful way.
+# MAGIC 
+# MAGIC These files can be delivered electronically to the requested electronically.
+# MAGIC 
+# MAGIC **Note:** if charges need to be reconciled with energy providers, we'll need to group these charges different. Perhaps this is a different exercise ;)
 
 # COMMAND ----------
 
+# Clean up the csv_per_month directory (our new output directory)
+output_dir = f"{working_directory}/csv_per_month/"
+dbutils.fs.rm(output_dir, True)
+
+# COMMAND ----------
+
+# Create columns year and month to prepare for partitioning
+from pyspark.sql.functions import date_format
+
+final_df_with_partition_data = final_df \
+    .withColumn("year", date_format(col("stop_timestamp"), "yyyy")) \
+    .withColumn("month", date_format(col("stop_timestamp"), "MM")) \
+
+final_df_with_partition_data.show()
+
+
+# COMMAND ----------
+
+# Partition by charge_point_id, year, and month and write out to csv
+
+final_df_with_partition_data.write.partitionBy("charge_point_id", "year", "month") \
+    .mode("overwrite") \
+    .option("header", "true").option("sep", ",") \
+    .csv(f"{working_directory}/csv_per_month/")
+
+# COMMAND ----------
+
+# Show what directories we have in /csv_per_month
+display(spark.createDataFrame(dbutils.fs.ls(f"{working_directory}/csv_per_month/")))
+
+# COMMAND ----------
+
+# Show all files in the directory charge_point_id=AL1000/year=2022/month=10
+display(spark.createDataFrame(dbutils.fs.ls(f"{working_directory}/csv_per_month/charge_point_id=AL1000/year=2022/month=10")))
+
+# COMMAND ----------
+
+# Get the name of the CSV in the directory. In our case, there's just one, but there can be many.
+csv_filename = [ x.name  for x in dbutils.fs.ls(f"{working_directory}/csv_per_month/charge_point_id=AL1000/year=2022/month=10") if x.name.endswith(".csv") ][0]
+
+# Quickly inspect the file
+dbutils.fs.head(f"{working_directory}/csv_per_month/charge_point_id=AL1000/year=2022/month=10/{csv_filename}")
 
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Export to CSV
+# MAGIC #### Reflect
+# MAGIC We could have technically written this file out anywhere:
+# MAGIC * local file storage
+# MAGIC * blob storage (AWS S3, Azure ADLS, etc)
+# MAGIC 
+# MAGIC We're writing this to local file storage in your working directory for the purposes of this exercise but this might not work when trying to share data or in production environments.
 
 # COMMAND ----------
 
-
+# MAGIC %md
+# MAGIC ### EXERCISE: Charge Dispensed per Transaction Per Charge Point per month for 2022
+# MAGIC 
+# MAGIC charge_point_id = AL1000
+# MAGIC 
+# MAGIC Read directly from `f"{working_directory}/csv_per_month/charge_point_id=AL1000/year=2022/month=10"`
 
 # COMMAND ----------
 
@@ -2785,5 +2842,15 @@ final_df.show()
 
 ######## SOLUTION ########
 ### YOUR CODE HERE
-display(final_df.select("charge_point_id", "write_timestamp"))
+display(final_df_with_partition_data.filter(col("year") == 2022))
 ###
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Reflect
+# MAGIC While Databricks Visualisations is great as it is, there's also other options out there for tooling. If you'd like to, try [creating some plots using Plotly](https://plotly.com/python/pie-charts/)!
+
+# COMMAND ----------
+
+
