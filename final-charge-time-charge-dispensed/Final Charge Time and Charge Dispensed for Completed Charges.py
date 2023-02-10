@@ -180,33 +180,6 @@ display(df_transactions)
 
 # COMMAND ----------
 
-########### SOLUTION ##############
-
-from pyspark.sql import DataFrame
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
-
-def create_transactions_dataframe(filepath: str) -> DataFrame:
-    
-    custom_schema = StructType([
-        StructField("charge_point_id", StringType(), True),
-        StructField("id_tag", StringType(), True),
-        StructField("start_timestamp", StringType(), True),
-        StructField("transaction_id", IntegerType(), True),
-    ])
-    
-    df = spark.read.format("csv") \
-        .option("header", True) \
-        .option("delimiter", ",") \
-        .option("escape", "\"") \
-        .schema(custom_schema) \
-        .load(filepath)
-    return df
-    
-df_transactions = create_transactions_dataframe(transactions_filepath)
-display(df_transactions)
-
-# COMMAND ----------
-
 def test_create_transactions_dataframe():
     result = create_transactions_dataframe(transactions_filepath)
     assert result is not None
@@ -238,17 +211,6 @@ def return_stoptransaction(input_df: DataFrame) -> DataFrame:
     ###
     
 df.transform(return_stoptransaction).show()
-
-# COMMAND ----------
-
-######## SOLUTION ########
-def return_stoptransaction(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.filter(input_df.action == "StopTransaction")
-    ###
-    
-stoptransaction_df = df.transform(return_stoptransaction)
-stoptransaction_df.show(5)
 
 # COMMAND ----------
 
@@ -385,32 +347,6 @@ df.transform(return_stoptransaction).transform(convert_stop_transaction_json).sh
 
 # COMMAND ----------
 
-########### SOLUTION ############
-from pyspark.sql.functions import from_json, json_tuple, col
-from pyspark.sql.types import StringType, IntegerType, ArrayType, DoubleType, LongType
-
-
-def stop_transaction_body_schema():
-    return StructType([
-        ### YOUR CODE HERE
-        StructField("meter_stop", IntegerType(), True),
-        StructField("timestamp", StringType(), True),
-        StructField("transaction_id", IntegerType(), True),
-        StructField("reason", StringType(), True),
-        StructField("id_tag", StringType(), True),
-        StructField("transaction_data", ArrayType(StringType()), True)
-        ###
-    ])
-    
-def convert_stop_transaction_json(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.withColumn("new_body",from_json(col("body"), stop_transaction_body_schema()))
-    ###
-
-df.transform(return_stoptransaction).transform(convert_stop_transaction_json).show()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC Let's run the unit test!
 
@@ -538,12 +474,6 @@ def flatten_json(input_df: DataFrame) -> DataFrame:
 
 # COMMAND ----------
 
-######## SOLUTION ##########
-def flatten_json(input_df: DataFrame) -> DataFrame:
-    return input_df.select("*", col("new_body.*")).select(col("charge_point_id"), col("write_timestamp"), col("action"), col("meter_stop"), col("timestamp"), col("transaction_id"), col("reason"), col("id_tag"), col("transaction_data"))
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC Let's run the unit test!
 
@@ -614,20 +544,6 @@ test_flatten_data()
 def join_transactions_with_stop_transactions(input_df: DataFrame, join_df: DataFrame) -> DataFrame:    
     ### YOUR CODE HERE
     return input_df
-    ###
-    
-df_transactions.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-).show()
-
-# COMMAND ----------
-
-######## SOLUTION ##########
-
-def join_transactions_with_stop_transactions(input_df: DataFrame, join_df: DataFrame) -> DataFrame:  
-    ### YOUR CODE HERE
-    return input_df.join(join_df, input_df.transaction_id == join_df.transaction_id, "inner").select(input_df.transaction_id, input_df.charge_point_id, input_df.id_tag, input_df.start_timestamp, join_df.meter_stop, join_df.timestamp, join_df.reason, join_df.transaction_data)
     ###
     
 df_transactions.transform(
@@ -741,20 +657,6 @@ test_join_transactions_with_stop_transactions()
 def rename_timestamp_to_stop_timestamp(input_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
     return input_df
-    ###
-
-df_transactions.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-).transform(rename_timestamp_to_stop_timestamp).show()
-
-# COMMAND ----------
-
-########## SOLUTION ###########
-
-def rename_timestamp_to_stop_timestamp(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.withColumnRenamed("timestamp", "stop_timestamp")
     ###
 
 df_transactions.transform(
@@ -979,23 +881,6 @@ df_transactions.transform(
 
 # COMMAND ----------
 
-######### SOLUTION ##########
-from pyspark.sql.functions import round
-
-def calculate_charge_duration_minutes(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df \
-        .withColumn("charge_duration_minutes", col("stop_timestamp").cast("long")/60 - col("start_timestamp").cast("long")/60) \
-        .withColumn("charge_duration_minutes", round(col("charge_duration_minutes").cast(DoubleType()),2))
-    ###
-
-df_transactions.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-).transform(rename_timestamp_to_stop_timestamp).transform(convert_start_stop_timestamp_to_timestamp_type).transform(calculate_charge_duration_minutes).show()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC Let's run the unit test!
 
@@ -1086,19 +971,6 @@ test_calculate_charge_duration_minutes()
 def cleanup_extra_columns(input_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
     return input_df
-    ###
-    
-df_transactions.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-).transform(rename_timestamp_to_stop_timestamp).transform(convert_start_stop_timestamp_to_timestamp_type).transform(calculate_charge_duration_minutes).transform(cleanup_extra_columns).show()
-
-# COMMAND ----------
-
-########## SOLUTION ############
-def cleanup_extra_columns(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.select("transaction_id", "charge_point_id", "id_tag", "start_timestamp", "stop_timestamp", "charge_duration_minutes")
     ###
     
 df_transactions.transform(
@@ -1223,37 +1095,6 @@ def convert_metervalues_to_json(input_df: DataFrame) -> DataFrame:
     ])
     
     return input_df
-    ###
-
-df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).printSchema()
-
-# COMMAND ----------
-
-########## SOLUTION ###########
-def convert_metervalues_to_json(input_df: DataFrame) -> DataFrame:
-    
-    ### YOUR CODE HERE
-    sampled_value_schema = StructType([
-        StructField("value", StringType()),
-        StructField("context", StringType()),
-        StructField("format", StringType()),
-        StructField("measurand", StringType()),
-        StructField("phase", StringType()),
-        StructField("unit", StringType()),
-    ])
-
-    meter_value_schema = StructType([
-        StructField("timestamp", StringType()),
-        StructField("sampled_value", ArrayType(sampled_value_schema)),
-    ])
-
-    body_schema = StructType([
-        StructField("connector_id", IntegerType()),
-        StructField("transaction_id", IntegerType()),
-        StructField("meter_value", ArrayType(meter_value_schema)),
-    ])
-    
-    return input_df.withColumn("new_body", from_json(col("body"), body_schema))
     ###
 
 df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).printSchema()
@@ -1394,38 +1235,6 @@ df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).tra
 
 # COMMAND ----------
 
-########### SOLUTION ############
-from pyspark.sql.functions import explode
-
-def flatten_metervalues_json(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.select("*", col("new_body.*")) \
-        .withColumnRenamed("meter_value", "meter_value_og") \
-        .select("*", explode(col("meter_value_og")).alias("meter_value")) \
-        .select("*", col("meter_value.*")) \
-        .withColumnRenamed("sampled_value", "sampled_value_og") \
-        .select("*", explode(col("sampled_value_og")).alias("sampled_value")) \
-        .select("*", col("sampled_value.*")) \
-        .select(
-            col("charge_point_id"),
-            col("action"),
-            col("write_timestamp"),
-            col("connector_id"),
-            col("transaction_id"),
-            col("timestamp"),
-            col("value"),
-            col("context"),
-            col("format"),
-            col("phase"),
-            col("measurand"),
-            col("unit"),
-        )
-    ###
-    
-df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).show(5)
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC Let's run the unit test!
 
@@ -1503,24 +1312,6 @@ def get_most_recent_energy_active_import_register(input_df: DataFrame) -> DataFr
     return input_df \
         .filter(col("measurand") == "Energy.Active.Import.Register") \
         
-df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).show(10)
-
-# COMMAND ----------
-
-########## SOLUTION ###########
-from pyspark.sql.window import *
-from pyspark.sql.functions import row_number
-
-def get_most_recent_energy_active_import_register(input_df: DataFrame) -> DataFrame:
-    return input_df \
-        .filter(col("measurand") == "Energy.Active.Import.Register") \
-        .withColumnRenamed("timestamp", "timestamp_og") \
-        .withColumn("timestamp", to_timestamp(col("timestamp_og"))) \
-        .withColumn("rn", row_number().over(Window.partitionBy("charge_point_id", "transaction_id").orderBy(col("timestamp").desc()))) \
-        .where(col("rn") == 1) \
-        .drop("rn", "timestamp_og")
-        
-
 df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).show(10)
 
 # COMMAND ----------
@@ -1626,17 +1417,6 @@ df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).tra
 
 # COMMAND ----------
 
-########## SOLUTION ##########
-
-def cast_value_to_double(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.withColumn("value", col("value").cast("double"))
-    ###
-
-df.filter(df.action == "MeterValues").transform(convert_metervalues_to_json).transform(flatten_metervalues_json).transform(get_most_recent_energy_active_import_register).transform(cast_value_to_double).printSchema()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC Let's run the unit test!
 
@@ -1724,34 +1504,6 @@ def join_transactions_with_meter_values(input_df: DataFrame, join_df: DataFrame)
     ###
     
 
-df_transactions \
-.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-) \
-.transform(rename_timestamp_to_stop_timestamp) \
-.transform(convert_start_stop_timestamp_to_timestamp_type) \
-.transform(calculate_charge_duration_minutes) \
-.transform(cleanup_extra_columns) \
-.transform(
-    join_transactions_with_meter_values, 
-    df.filter(df.action == "MeterValues") \
-    .transform(convert_metervalues_to_json) \
-    .transform(flatten_metervalues_json) \
-    .transform(get_most_recent_energy_active_import_register) \
-    .transform(cast_value_to_double)
-).show()
-
-# COMMAND ----------
-
-########## SOLUTION ###########
-def join_transactions_with_meter_values(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df \
-        .join(join_df, input_df.transaction_id == join_df.transaction_id, "left") \
-        .select(input_df.transaction_id, input_df.charge_point_id, input_df.id_tag, input_df.start_timestamp, input_df.stop_timestamp, input_df.charge_duration_minutes, join_df.value.alias("charge_dispensed_Wh"))
-    ###
-    
 df_transactions \
 .transform(
     join_transactions_with_stop_transactions,
