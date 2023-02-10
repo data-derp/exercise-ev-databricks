@@ -18,9 +18,6 @@
 # MAGIC   * Time Conversion
 # MAGIC   * Windows and Rows
 # MAGIC   * Cleanup
-# MAGIC   * Write Data (JSON, CSV)
-# MAGIC * Data Visualisation
-# MAGIC   * Visualise it!
 
 # COMMAND ----------
 
