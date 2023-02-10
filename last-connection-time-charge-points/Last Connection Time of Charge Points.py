@@ -30,8 +30,8 @@
 
 # COMMAND ----------
 
-# MAGIC %pip uninstall -y databricks_helpers
-# MAGIC %pip install git+https://github.com/data-derp/databricks_helpers#egg=databricks_helpers
+# MAGIC %pip uninstall -y databricks_helpers exercise_ev_databricks_unit_tests
+# MAGIC %pip install git+https://github.com/data-derp/databricks_helpers#egg=databricks_helpers git+https://github.com/data-derp/exercise_ev_databricks_unit_tests#egg=exercise_ev_databricks_unit_tests
 
 # COMMAND ----------
 
@@ -170,7 +170,7 @@ test_create_dataframe()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Time Conversion
+# MAGIC ### EXERCISE: Convert String to Timestamp
 
 # COMMAND ----------
 
@@ -205,56 +205,14 @@ df.transform(convert_to_timestamp).show()
 
 # COMMAND ----------
 
-from pyspark.sql.types import TimestampType
-import pandas as pd
+# MAGIC %md
+# MAGIC Let's run the unit test!
 
-def test_convert_to_timestamp():    
-    input_pandas = pd.DataFrame([
-        {
-            "charge_point_id": "AL1000",
-            "write_timestamp": "2022-10-02T15:30:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}"
-        },
-        {
-            "charge_point_id": "AL1000",
-            "write_timestamp": "2022-10-02T15:32:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}"
-        },
-        {
-            "charge_point_id": "AL1000",
-            "write_timestamp": "2022-10-02T15:34:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}"
-        },
-    ])
+# COMMAND ----------
 
-    input_df = spark.createDataFrame(
-        input_pandas,
-        StructType([
-            StructField("charge_point_id", StringType()),
-            StructField("write_timestamp", StringType()),
-            StructField("action", StringType()),
-            StructField("body", StringType()),
-        ]))
+from exercise_ev_databricks_unit_tests.last_connection_time_of_charge_points import test_convert_to_timestamp
 
-    input_df = spark.createDataFrame(input_pandas)
-    result = input_df.transform(convert_to_timestamp)
-    assert result.count() == 3
-    assert result.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp"]
-    
-    expected_schema = StructType([
-        StructField('charge_point_id', StringType(), True), 
-        StructField('write_timestamp', StringType(), True), 
-        StructField('action', StringType(), True), 
-        StructField('body', StringType(), True), 
-        StructField('converted_timestamp', TimestampType(), True)
-    ])
-    assert result.schema == expected_schema
-    print("All tests pass! :)")
-    
-test_convert_to_timestamp()
+test_convert_to_timestamp(spark, convert_to_timestamp)
 
 # COMMAND ----------
 
@@ -270,8 +228,8 @@ df.transform(convert_to_timestamp).sort(col("converted_timestamp").desc()).show(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Windows and Rows
-# MAGIC In reality, we actually need the most recent message PER distinct Charge Point ID. We can use a GroupBy statement, Windowing, OrderBy, and Sorting in order to achieve this. 
+# MAGIC ### EXERCISE: Find the most recent message per Charge Point
+# MAGIC In reality, we actually need the most recent message PER distinct Charge Point ID. We can use a [GroupBy](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.groupBy.html) statement, [Windows](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.window.html?highlight=window#pyspark.sql.functions.window), [OrderBy](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.orderBy.html?highlight=order#pyspark.sql.DataFrame.orderBy), and [Sorting](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.Column.desc.html?highlight=desc#pyspark.sql.Column.desc) in order to achieve this. 
 
 # COMMAND ----------
 
@@ -283,6 +241,11 @@ df.transform(convert_to_timestamp).sort(col("converted_timestamp").desc()).show(
 from pyspark.sql.functions import *
 
 df.select("charge_point_id").distinct().sort(col("charge_point_id").asc()).show()
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC 💡 First think about how you would do this in SQL (using GroupBy, Windows, OrderBy, and sorting) and then translate it to the Spark API
 
 # COMMAND ----------
 
@@ -298,56 +261,14 @@ df.transform(convert_to_timestamp).transform(most_recent_message_of_charge_point
 
 # COMMAND ----------
 
-from dateutil.parser import parse
-def test_most_recent_message_of_charge_point():
-    input_pandas = pd.DataFrame([
-        {
-            "charge_point_id": "AL1000",
-            "write_timestamp": "2022-10-02T15:30:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}",
-            "converted_timestamp": parse("2022-10-02T15:30:17.000345+00:00")
-        },
-        {
-            "charge_point_id": "AL1000",
-            "write_timestamp": "2022-10-02T15:32:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}",
-            "converted_timestamp": parse("2022-10-02T15:32:17.000345+00:00")
-        },
-        {
-            "charge_point_id": "AL2000",
-            "write_timestamp": "2022-10-02T15:34:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}",
-            "converted_timestamp": parse("2022-10-02T15:34:17.000345+00:00"),
-        },
-        {
-            "charge_point_id": "AL2000",
-            "write_timestamp": "2022-10-02T15:36:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}",
-            "converted_timestamp": parse("2022-10-02T15:36:17.000345+00:00"),
-        },
-    ])
+# MAGIC %md
+# MAGIC Let's run the unit test!
 
-    input_df = spark.createDataFrame(
-        input_pandas,
-        StructType([
-            StructField("charge_point_id", StringType()),
-            StructField("write_timestamp", StringType()),
-            StructField("action", StringType()),
-            StructField("body", StringType()),
-            StructField("converted_timestamp", TimestampType()),
-        ]))
+# COMMAND ----------
 
-    input_df = spark.createDataFrame(input_pandas)
-    result = input_df.transform(most_recent_message_of_charge_point)
-    assert result.count() == 2
-    assert result.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp", "rn"]
-    print("All tests pass! :)")
-    
-test_most_recent_message_of_charge_point()
+from exercise_ev_databricks_unit_tests.last_connection_time_of_charge_points import test_most_recent_message_of_charge_point
+
+test_most_recent_message_of_charge_point(spark, most_recent_message_of_charge_point)
 
 # COMMAND ----------
 
@@ -373,47 +294,9 @@ def cleanup(input_df: DataFrame) -> DataFrame:
 
 # COMMAND ----------
 
-from pyspark.sql.types import IntegerType
+from exercise_ev_databricks_unit_tests.last_connection_time_of_charge_points import test_cleanup
 
-def test_cleanup():
-    input_pandas = pd.DataFrame([
-        {
-            "charge_point_id": "AL1000",
-            "write_timestamp": "2022-10-02T15:32:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}",
-            "converted_timestamp": parse("2022-10-02T15:32:17.000345+00:00"),
-            "rn": 1
-        },
-        {
-            "charge_point_id": "AL2000",
-            "write_timestamp": "2022-10-02T15:36:17.000345+00:00",
-            "action": "Heartbeat",
-            "body": "{}",
-            "converted_timestamp": parse("2022-10-02T15:36:17.000345+00:00"),
-            "rn": 1
-        },
-    ])
-
-    input_df = spark.createDataFrame(
-        input_pandas,
-        StructType([
-            StructField("charge_point_id", StringType()),
-            StructField("write_timestamp", StringType()),
-            StructField("action", StringType()),
-            StructField("body", StringType()),
-            StructField("converted_timestamp", TimestampType()),
-            StructField("rn", IntegerType())
-        ]))
-
-    input_df = spark.createDataFrame(input_pandas)
-    result = input_df.transform(cleanup)
-    assert result.count() == 2
-    assert result.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp"]
-    print("All tests pass! :)")
-    
-test_cleanup()
-    
+test_cleanup(spark, cleanup)
 
 # COMMAND ----------
 
@@ -425,120 +308,10 @@ test_cleanup()
 final_df = df.transform(convert_to_timestamp).\
     transform(most_recent_message_of_charge_point).\
     transform(cleanup)
-final_df.show()
+display(final_df)
 
 # COMMAND ----------
 
-from pyspark.sql.types import IntegerType
-from datetime import datetime
+from exercise_ev_databricks_unit_tests.last_connection_time_of_charge_points import test_final
 
-def test_final():
-    assert final_df.count() == 5
-    assert [ x["charge_point_id"] for x in final_df.select("charge_point_id").collect()] == ['AL1000', 'AL2000', 'AL3000', 'AL4000', 'AL5000']
-    assert [x.converted_timestamp for x in final_df.select("converted_timestamp").collect()] == [
-        datetime(2022, 10, 3, 2, 30, 23, 337), 
-        datetime(2022, 10, 3, 3, 3, 35, 254), 
-        datetime(2022, 12, 11, 7, 9, 47, 236), 
-        datetime(2022, 12, 5, 8, 43, 55, 432), 
-        datetime(2022, 12, 16, 13, 49, 4, 478389)
-    ]
-    assert final_df.columns == ["charge_point_id", "write_timestamp", "action", "body", "converted_timestamp"]
-    print("All tests pass! :)")
-    
-test_final()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### EXERCISE: Write Data
-# MAGIC There are multiple output formats that Spark can write to, such as JSON, CSV, Parquet, Avro, ORC, and Delta Lake, and Spark can do so in very similar ways:
-# MAGIC 
-# MAGIC | Format | Call |
-# MAGIC | --- | --- |
-# MAGIC | JSON | dataframe.write.json("awesome-filename.json") |
-# MAGIC | CSV | dataframe.write.csv("awesome-filename.csv") |
-# MAGIC | Parquet | dataframe.write.parquet("awesome-filename.parquet") |
-# MAGIC 
-# MAGIC ...and so on and so forth.
-# MAGIC 
-# MAGIC If you've worked with CSV files before, you know that there's a few eccentricities to keep an eye on:
-# MAGIC * setting a header
-# MAGIC * setting a delimiter
-# MAGIC * handling of quotes
-# MAGIC 
-# MAGIC Luckily, the [Dataframe CSV Writer](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrameWriter.csv.html) can take all of those as options, as can the Dataframe writers of the other formats.
-# MAGIC 
-# MAGIC As we are at a "save" or "handoff" point, now is a good time to write our data to a format that is compatible with consumers. Let's say, you have two consumers:
-# MAGIC * an Analytics team asking for an API endpoint that serves JSON
-# MAGIC * the Charge Point maintenance team asking for a CSV of offline Charge Points to check up on
-# MAGIC 
-# MAGIC In this case, we need both a JSON file and a CSV file to distribute to its respective consumers.
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC 1. **Write to CSV.** Write the `final_df` to a csv file with headers and comma (`,`) delimiters using the `.option` method.
-
-# COMMAND ----------
-
-def write_to_csv():
-    ### YOUR CODE HERE
-    final_df
-    ###
-    
-write_to_csv()
-
-# COMMAND ----------
-
-def test_write_to_csv():
-    files = dbutils.fs.ls(f"{working_directory}/out-csv/")
-    files_df = spark.createDataFrame(files)
-    assert files_df.filter(files_df.name == "_SUCCESS").count() == 1
-    assert files_df.filter(files_df.name.startswith("part-")).filter(files_df.name.endswith(".csv")).count() == 1
-    print("All tests pass! :)")
-    
-test_write_to_csv()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC 2. **Write to JSON.**
-
-# COMMAND ----------
-
-def write_to_json():
-    ### YOUR CODE HERE
-    final_df
-    ###
-    
-write_to_json()
-
-# COMMAND ----------
-
-def test_write_to_json():
-    files = dbutils.fs.ls(f"{working_directory}/out-json")
-    files_df = spark.createDataFrame(files)
-    assert files_df.filter(files_df.name == "_SUCCESS").count() == 1
-    assert files_df.filter(files_df.name.startswith("part-")).filter(files_df.name.endswith(".json")).count() == 1
-    print("All tests pass! :)")
-    
-test_write_to_json()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## DATA VISUALISATION
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### EXERCISE: Visualise It!
-# MAGIC Recall that our task was to show the latest timestamp of each Charge Point. In this case, it doesn't make too much sense to introduce a colourful graph; in fact, a list or table would be just fine. Looking at our data, the two relevant columns are `charge_point_id` and `write_timestamp`.
-# MAGIC 
-# MAGIC Use the [display function](https://docs.databricks.com/notebooks/visualizations/index.html) to show only the `charge_point_id` and `write_timestamp` columns from the `final_df` DataFrame.
-
-# COMMAND ----------
-
-### YOUR CODE HERE
-
-###
+test_final(final_df)
