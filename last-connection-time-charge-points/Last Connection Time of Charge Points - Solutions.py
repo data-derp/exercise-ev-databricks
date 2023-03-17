@@ -109,7 +109,7 @@ helpers.clean_working_directory()
 
 # COMMAND ----------
 
-url = "https://github.com/data-derp/exercise-ev-databricks/blob/main/data_generator/out/data.csv?raw=true"
+url = "https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/main/data/1678731740.csv"
 filepath = helpers.download_to_local_dir(url)
 
 # COMMAND ----------
@@ -136,8 +136,9 @@ filepath = helpers.download_to_local_dir(url)
 # COMMAND ----------
 
 from pyspark.sql import DataFrame
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
+### YOUR CODE HERE
 def create_dataframe(filepath: str) -> DataFrame:
     ### YOUR CODE HERE ###
     custom_schema = None
@@ -145,24 +146,29 @@ def create_dataframe(filepath: str) -> DataFrame:
     df = None
     return df
     ###
-
+    
 df = create_dataframe(filepath)
+df.show()
+
 
 # COMMAND ----------
 
 ########### SOLUTION #############
 from pyspark.sql import DataFrame
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 ### YOUR CODE HERE
 def create_dataframe(filepath: str) -> DataFrame:
     ### YOUR CODE HERE ###
     custom_schema = StructType([
+        StructField("message_id", StringType(), True),
+        StructField("message_type", IntegerType(), True),
         StructField("charge_point_id", StringType(), True),
-        StructField("write_timestamp", StringType(), True),
         StructField("action", StringType(), True),
-        StructField("body", StringType(), True),
+        StructField("write_timestamp", StringType(), True),
+        StructField("body", StringType(), True)
     ])
+    
 
     df = spark.read.format("csv") \
         .option("header", True) \
@@ -181,8 +187,10 @@ df.show()
 def test_create_dataframe():
     result = create_dataframe(filepath)
     assert result is not None
-    assert result.columns == ['charge_point_id', 'write_timestamp', 'action', 'body']
-    assert result.count() == 484
+    assert result.columns == ['message_id', 'message_type', 'charge_point_id', 'action', 'write_timestamp', 'body']
+    result_count = result.count()
+    expected_count = 46308
+    assert result_count == expected_count, f"Expected {expected_count} but got {result_count}"
     print("All tests pass! :)")
     
 test_create_dataframe()
