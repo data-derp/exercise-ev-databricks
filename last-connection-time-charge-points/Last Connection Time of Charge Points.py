@@ -109,7 +109,7 @@ helpers.clean_working_directory()
 
 # COMMAND ----------
 
-url = "https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/main/data/1678731740.csv"
+url = "https://raw.githubusercontent.com/data-derp/exercise-ev-databricks/main/data/1679387766.csv"
 filepath = helpers.download_to_local_dir(url)
 
 # COMMAND ----------
@@ -158,7 +158,7 @@ def test_create_dataframe():
     assert result is not None
     assert result.columns == ['message_id', 'message_type', 'charge_point_id', 'action', 'write_timestamp', 'body']
     result_count = result.count()
-    expected_count = 46308
+    expected_count = 46322
     assert result_count == expected_count, f"Expected {expected_count} but got {result_count}"
     print("All tests pass! :)")
     
@@ -304,6 +304,7 @@ test_cleanup(spark, cleanup)
 
 # MAGIC %md
 # MAGIC ## All together now!
+# MAGIC Go ahead and inspect your final dataframe!
 
 # COMMAND ----------
 
@@ -317,3 +318,14 @@ display(final_df)
 from exercise_ev_databricks_unit_tests.last_connection_time_of_charge_points import test_final
 
 test_final(final_df)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Reflect
+# MAGIC * What does each row represent?
+# MAGIC * Which column contains the relevant final communication time of the charger?
+
+# COMMAND ----------
+
+
