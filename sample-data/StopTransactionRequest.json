@@ -1,0 +1,15 @@
+{
+  "message_id": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+  "message_type": 2,
+  "charge_point_id": "123",
+  "action": "StopTransaction",
+  "body": {
+    "meter_stop": 2780,
+    "timestamp": "2022-01-01T08:20:00+00:00",
+    "transaction_id": 1,
+    "reason": null,
+    "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+    "transaction_data": null
+  },
+  "write_timestamp": "2022-01-01T08:20:00+00:00"
+}

@@ -1,0 +1,15 @@
+{
+  "message_id": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+  "message_type": 3,
+  "charge_point_id": "123",
+  "action": "StartTransaction",
+  "body": {
+    "transaction_id": 1,
+    "id_tag_info": {
+      "status": "Accepted",
+      "parent_id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+      "expiry_date": null
+    }
+  },
+  "write_timestamp": "2022-01-01T08:00:02+00:00"
+}

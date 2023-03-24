@@ -1,0 +1,126 @@
+{
+  "message_id": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+  "message_type": 2,
+  "charge_point_id": "123",
+  "action": "MeterValues",
+  "body": {
+    "connector_id": 1,
+    "meter_value": [
+      {
+        "timestamp": "2022-01-01T08:00:06+00:00",
+        "sampled_value": [
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Voltage",
+            "phase": "L1-N",
+            "location": null,
+            "unit": "V"
+          },
+          {
+            "value": "7.21",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Current.Import",
+            "phase": "L1",
+            "location": null,
+            "unit": "A"
+          },
+          {
+            "value": "1400.77",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Power.Active.Import",
+            "phase": "L1",
+            "location": null,
+            "unit": "W"
+          },
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Voltage",
+            "phase": "L2-N",
+            "location": null,
+            "unit": "V"
+          },
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Current.Import",
+            "phase": "L2",
+            "location": null,
+            "unit": "A"
+          },
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Power.Active.Import",
+            "phase": "L2",
+            "location": null,
+            "unit": "W"
+          },
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Voltage",
+            "phase": "L3-N",
+            "location": null,
+            "unit": "V"
+          },
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Current.Import",
+            "phase": "L3",
+            "location": null,
+            "unit": "A"
+          },
+          {
+            "value": "0.0",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Power.Active.Import",
+            "phase": "L3",
+            "location": null,
+            "unit": "W"
+          },
+          {
+            "value": "1400.77",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Energy.Active.Import.Register",
+            "phase": null,
+            "location": null,
+            "unit": "Wh"
+          },
+          {
+            "value": "7.21",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Current.Import",
+            "phase": null,
+            "location": null,
+            "unit": "A"
+          },
+          {
+            "value": "1400.77",
+            "context": "Sample.Periodic",
+            "format": "Raw",
+            "measurand": "Power.Active.Import",
+            "phase": null,
+            "location": null,
+            "unit": "W"
+          }
+        ]
+      }
+    ],
+    "transaction_id": 1
+  },
+  "write_timestamp": "2022-01-01T08:00:06+00:00"
+}
