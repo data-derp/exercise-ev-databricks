@@ -6,8 +6,8 @@
 # MAGIC | CDR field | Description |
 # MAGIC | --- | --- |
 # MAGIC | total_energy | How much charge was dispensed (StopTransactionRequest.meter_stop - StartTransactionRequest.meter_start) |
-# MAGIC |  total_time |  How long the transaction was (StopTransactionRequest.timestamp - StartTransactionRequest.timestamp) | 
-# MAGIC |  total_parking_time |  Total time of the transaction - time spent charging (because charging can be paused in the middle of a transaction) | 
+# MAGIC | total_time |  How long the transaction was (StopTransactionRequest.timestamp - StartTransactionRequest.timestamp) | 
+# MAGIC | total_parking_time |  Total time of the transaction - time spent charging (because charging can be paused in the middle of a transaction) | 
 # MAGIC | charging_periods |  The chunks of time spend actually charging (in reality, we'd group this additionlly by different electricity tariffs (e.g. one day tariff, one night tariff), but let's ignore cost for now) | 
 # MAGIC 
 # MAGIC 
@@ -171,8 +171,8 @@ def return_stop_transaction_requests(input_df: DataFrame) -> DataFrame:
     return input_df.filter((input_df.action == "StopTransaction") & (input_df.message_type == 2))
     ###
     
-stop_transaction_df = df.transform(return_stop_transaction_requests)
-display(stop_transaction_df)
+stop_transaction_request_df = df.transform(return_stop_transaction_requests)
+display(stop_transaction_request_df)
 
 # COMMAND ----------
 
@@ -214,7 +214,7 @@ def test_return_stop_transaction_unit():
         ])
     )
 
-    result = input_df.transform(return_stoptransaction)
+    result = input_df.transform(return_stop_transaction_requests)
     result_count = result.count()
     assert result_count == 1, f"expected 1, but got {result_count}"
 
@@ -238,7 +238,7 @@ test_return_stop_transaction_unit()
 # COMMAND ----------
 
 def test_return_stoptransaction():
-    result = df.transform(return_stoptransaction)
+    result = df.transform(return_stop_transaction_requests)
     
     count =  result.count()
     expected_count = 95
@@ -260,7 +260,7 @@ test_return_stoptransaction()
 
 # COMMAND ----------
 
-stoptransaction_df.printSchema()
+stop_transaction_request_df.printSchema()
 
 # COMMAND ----------
 
@@ -271,7 +271,7 @@ stoptransaction_df.printSchema()
 
 from pyspark.sql.functions import col
 
-stoptransaction_df.select(col("body.transaction_id"))
+stop_transaction_request_df.select(col("body.transaction_id"))
 
 # COMMAND ----------
 
@@ -340,7 +340,7 @@ def convert_stop_transaction_request_json(input_df: DataFrame) -> DataFrame:
     return input_df.withColumn("new_body",from_json(col("body"), stop_transaction_body_schema()))
     ###
 
-display(df.transform(return_stoptransaction).transform(convert_stop_transaction_request_json))
+display(df.transform(return_stop_transaction_requests).transform(convert_stop_transaction_request_json))
 
 
 # COMMAND ----------
@@ -352,7 +352,7 @@ display(df.transform(return_stoptransaction).transform(convert_stop_transaction_
 
 from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_convert_stop_transaction_unit
 
-test_convert_stop_transaction_unit(spark, convert_stop_transaction_json)
+test_convert_stop_transaction_unit(spark, convert_stop_transaction_request_json)
 
 # COMMAND ----------
 
@@ -362,7 +362,7 @@ test_convert_stop_transaction_unit(spark, convert_stop_transaction_json)
 # COMMAND ----------
 
 def test_convert_stop_transaction_json():
-    result = df.transform(return_stoptransaction).transform(convert_stop_transaction_json)
+    result = df.transform(return_stop_transaction_requests).transform(convert_stop_transaction_request_json)
     
     print("Transformed DF:")
     result.show()
@@ -410,12 +410,12 @@ test_convert_stop_transaction_json()
 
 from pyspark.sql.functions import col
 
-stop_transaction_json_df = df.transform(return_stoptransaction).transform(convert_stop_transaction_json)
+stop_transaction_json_df = df.transform(return_stop_transaction_requests).transform(convert_stop_transaction_request_json)
 stop_transaction_json_df.select(col("new_body.transaction_id")).show(5)
 
 # COMMAND ----------
 
-stoptransaction_json_df.new_body.transaction_id
+stop_transaction_json_df.new_body.transaction_id
 
 # COMMAND ----------
 
@@ -425,7 +425,7 @@ stoptransaction_json_df.new_body.transaction_id
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Unpack StartTransaction Response
+# MAGIC ### EXERCISE: Unpack StartTransaction Response
 # MAGIC Using the `transaction_id` in the StopTransaction Requests, we can start to build out our target object by using the `transaction_id` to find the related StartTransaction Response, and then the related StartTransaction Request. Why the weird route? The StartTransaction Response has a `transaction_id` and the StartTransaction Request doesn't; but the StartTransaction Request has valuable information, namely `meter_start` and a `timestamp` value we can use as our `start_timestamp`. The StartTransaction Request and Response both have the same `message_id` by design so we can use that to locate the relevant records. We won't traverse this route until later, but it's important understand where we need to be.
 # MAGIC 
 # MAGIC Very similarly to the previous exercise, we need to unpack the StartTransaction Response `body` column from a json string to json so we can eventually join our data on the `transaction_id` column.
@@ -499,7 +499,12 @@ display(df.filter((df.action == "StartTransaction") & (df.message_type == 3)).tr
 
 # COMMAND ----------
 
-from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_convert_stop_transaction_unit
+# MAGIC %md
+# MAGIC Let's run the unit test!
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_convert_start_transaction_response_json_unit
 
 test_convert_start_transaction_response_json_unit(spark, convert_start_transaction_response_json)
 
@@ -507,7 +512,39 @@ test_convert_start_transaction_response_json_unit(spark, convert_start_transacti
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Unpack StartTransaction Request
+# MAGIC And now the E2E!
+
+# COMMAND ----------
+
+def test_convert_start_transaction_response_json():
+    result = df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json)
+    
+    print("Transformed DF:")
+    display(result)
+    
+    assert result.columns == ["message_id", "message_type", "charge_point_id", "action", "write_timestamp", "body", "new_body"]
+    assert result.count() == 95, f"expected 95, but got {result.count()}"
+    
+    result_sub = result.limit(3)
+
+    def assert_expected_json_value(json_path: str, expected_values: List[Any]):
+        values = [getattr(x, json_path.split(".")[-1]) for x in result_sub.select(col(json_path)).collect()]
+        assert values == expected_values, f"expected {expected_values}, but got {values}"
+    
+    assert_expected_json_value("new_body.transaction_id", [1, 2, 3])
+    assert_expected_json_value("new_body.id_tag_info.status", ['Accepted', 'Accepted', 'Accepted'])
+    assert_expected_json_value("new_body.id_tag_info.parent_id_tag", ['e812abe5-e73b-453d-b71d-29ef6e1593f5', 'e812abe5-e73b-453d-b71d-29ef6e1593f5', 'e812abe5-e73b-453d-b71d-29ef6e1593f5'])
+    assert_expected_json_value("new_body.id_tag_info.expiry_date", [None, None, None])
+    
+    print("All tests pass! :)")
+
+    
+test_convert_start_transaction_response_json()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Unpack StartTransaction Request
 # MAGIC We know we'll need to extract a couple of fields from the StartTransaction Request events, namely `meter_start` and `timestamp` (eventually our `start_timestamp` in the target object).
 # MAGIC 
 # MAGIC As we have done with the StopTransaction Request and the StartTransaction Response, unpack the StartTransaction Request `body` column (currently a json string) into a new JSON column called `new_body` with the following schema:
@@ -579,8 +616,57 @@ display(df.filter((df.action == "StartTransaction") & (df.message_type == 2)).tr
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Find the StartTransaction Requests (Left Join)
-# MAGIC Now that we have unpacked the events for StartTransaction Request and StartTransaction response, we can find our StartTransaction Request by executing a **left** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction Response and the StartTransaction Request on the column `message_id`. Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
+# MAGIC Let's run the unit test!
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_convert_start_transaction_response_json_unit
+
+test_convert_start_transaction_request_unit(spark, convert_start_transaction_request_json)
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC And now the E2E test!
+
+# COMMAND ----------
+
+from typing import Any, List
+
+def test_convert_start_transaction_request_json():
+    result = df.filter((df.action == "StartTransaction") & (df.message_type == 2)).transform(convert_start_transaction_request_json)
+    
+    print("Transformed DF:")
+    display(result)
+    
+    assert result.columns == ["message_id", "message_type", "charge_point_id", "action", "write_timestamp", "body", "new_body"]
+    assert result.count() == 95, f"expected 95, but got {result.count()}"
+    
+    result_sub = result.limit(3)
+
+    def assert_expected_json_value(json_path: str, expected_values: List[Any]):
+        values = [getattr(x, json_path.split(".")[-1]) for x in result_sub.select(col(json_path)).collect()]
+        assert values == expected_values, f"expected {expected_values}, but got {values}"
+    
+    assert_expected_json_value("new_body.connector_id", [1, 2, 1])
+    assert_expected_json_value("new_body.id_tag", ['e812abe5-e73b-453d-b71d-29ef6e1593f5', 'e812abe5-e73b-453d-b71d-29ef6e1593f5', 'e812abe5-e73b-453d-b71d-29ef6e1593f5'])
+    assert_expected_json_value("new_body.meter_start", [0, 0, 0])
+    assert_expected_json_value("new_body.timestamp", ['2023-01-01T12:54:04.750286+00:00', '2023-01-01T12:57:35.483812+00:00', '2023-01-01T13:48:12.471750+00:00'])
+    assert_expected_json_value("new_body.reservation_id", [None, None, None])
+    
+    print("All tests pass! :)")
+
+    
+test_convert_start_transaction_request_json()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Find the matching StartTransaction Requests (Left Join)
+# MAGIC Now that we have unpacked the events for StartTransaction Request and StartTransaction Response, we can find our matching StartTransaction Request for each StartTransaction Response by executing a **left** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction Response and the StartTransaction Request on the column `message_id`. 
+# MAGIC 
+# MAGIC Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
 # MAGIC * charge_point_id
 # MAGIC * transaction_id
 # MAGIC * meter_start
@@ -617,50 +703,165 @@ display(start_transaction_df)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: TBD
+# MAGIC Let's run the unit test!
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_join_with_start_transaction_request_unit
+
+test_join_with_start_transaction_request_unit(spark, join_with_start_transaction_request)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC And now the E2E test!
+
+# COMMAND ----------
+
+def test_join_with_start_transaction_request():
+    result = df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json). \
+    transform(join_with_start_transaction_request, df.filter((df.action == "StartTransaction") & (df.message_type == 2)).transform(convert_start_transaction_request_json))
+    
+    print("Transformed DF:")
+    display(result)
+    
+    assert result.columns == ["charge_point_id", "transaction_id", "meter_start", "start_timestamp"]
+    assert result.count() == 95, f"expected 95, but got {result.count()}"
+    
+    result_sub = result.limit(3)
+    
+    def assert_expected_value(column: str, expected_values: List[Any]):
+        values = [getattr(x, column) for x in result_sub.select(col(column)).collect()]
+        assert values == expected_values, f"expected {expected_values}, but got {values}"
+    assert_expected_value("charge_point_id", ['01a0f039-7685-4a7f-9ef6-8d262a7898fb', '3e365f3f-6e30-43d3-b897-d6291a9f7c35', '77b7feb3-7f8f-4faf-86c6-d725e70e8c7f'])
+    assert_expected_value("transaction_id", [1, 2, 3])
+    assert_expected_value("meter_start", [0, 0, 0])
+    assert_expected_value("start_timestamp",  ['2023-01-01T13:48:12.471750+00:00', '2023-01-04T18:46:22.322745+00:00', '2023-01-04T19:57:40.882560+00:00'])
+    
+    print("All tests pass! :)")
+
+    
+test_join_with_start_transaction_request()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Join Start and Stop Data
 # MAGIC Now that we have our StartTransaction events joined together, we can now join our DataFrame with the StopTransaction Request data that contains `meter_stop` and `timestamp`.
 # MAGIC 
-# MAGIC Executing a **left** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction DataFrame and the StopTransaction Request on the column `new_body.transaction_id`. Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
+# MAGIC Executing a **left** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between StopTransaction Request and the StartTransaction DataFrame on the column `new_body.transaction_id`. Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
 # MAGIC * charge_point_id
 # MAGIC * transaction_id
 # MAGIC * meter_start
 # MAGIC * meter_stop
 # MAGIC * start_timestamp
 # MAGIC * stop_timestamp (the `timestamp` column from StopTransaction Request)
+# MAGIC 
+# MAGIC #### Reflect
+# MAGIC Do we join the StartTransaction DataFrame to our StopTransaction Request data or vice versa?
 
 # COMMAND ----------
 
-def join_with_stop_transaction_request(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
+def join_stop_with_start(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
     
-    ### YOUR CODE HERE  
+    ### YOUR CODE HERE
     return input_df
     ###
 
-start_transaction_response_df = df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json)
-start_transaction_request_df = df.filter((df.action == "StartTransaction") & (df.message_type == 2)).transform(convert_start_transaction_request_json)
-
-start_transaction_df = start_transaction_response_df.transform(join_with_start_transaction_request, start_transaction_request_df)
-
-result = start_transaction_df.transform(join_with_stop_transaction_request, stop_transaction_json_df)
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json)))
 display(result)
 
 # COMMAND ----------
 
 ########### SOLUTION ############
 
-def join_with_stop_transaction_request(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
+def join_stop_with_start(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
     
     ### YOUR CODE HERE
-    return input_df.join(join_df, input_df.transaction_id == join_df.new_body.transaction_id, "left").select(input_df.charge_point_id, input_df.transaction_id, input_df.meter_start, join_df.new_body.meter_stop.alias("meter_stop"), input_df.start_timestamp, join_df.new_body.timestamp.alias("stop_timestamp"))
+    return input_df.join(join_df, input_df.new_body.transaction_id == join_df.transaction_id, "left").select(join_df.charge_point_id, join_df.transaction_id, join_df.meter_start, input_df.new_body.meter_stop.alias("meter_stop"), join_df.start_timestamp, input_df.new_body.timestamp.alias("stop_timestamp"))
     ###
 
-start_transaction_response_df = df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json)
-start_transaction_request_df = df.filter((df.action == "StartTransaction") & (df.message_type == 2)).transform(convert_start_transaction_request_json)
-
-start_transaction_df = start_transaction_response_df.transform(join_with_start_transaction_request, start_transaction_request_df)
-
-result = start_transaction_df.transform(join_with_stop_transaction_request, stop_transaction_json_df)
+result = df.transform(return_stop_transaction_requests). \
+transform(convert_stop_transaction_request_json). \
+transform(
+    join_stop_with_start, 
+    df.filter(
+        (df.action == "StartTransaction") & (df.message_type == 3)). \
+        transform(convert_start_transaction_response_json).\
+        transform(
+            join_with_start_transaction_request, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 2)
+            ).transform(convert_start_transaction_request_json)))
 display(result)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Let's run the unit test!
+
+# COMMAND ----------
+
+
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_join_stop_with_start_unit
+
+test_join_stop_with_start_unit(spark, join_stop_with_start)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC And now the E2E test!
+
+# COMMAND ----------
+
+def test_join_stop_with_start_unit():
+    result = df.transform(return_stop_transaction_requests). \
+        transform(convert_stop_transaction_request_json). \
+        transform(
+            join_stop_with_start, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 3)). \
+                transform(convert_start_transaction_response_json).\
+                transform(
+                    join_with_start_transaction_request, 
+                    df.filter(
+                        (df.action == "StartTransaction") & (df.message_type == 2)
+                    ).transform(convert_start_transaction_request_json)))
+    
+    print("Transformed DF:")
+    display(result)
+    
+    assert set(result.columns) == set(["charge_point_id", "transaction_id", "meter_start", "meter_stop", "start_timestamp", "stop_timestamp"])
+    assert result.count() == 95, f"expected 95, but got {result.count()}"
+    
+    result_sub = result.limit(3)
+    
+    def assert_expected_value(column: str, expected_values: List[Any]):
+        values = [getattr(x, column) for x in result_sub.select(col(column)).collect()]
+        assert values == expected_values, f"expected {expected_values}, but got {values}"
+
+    assert_expected_value("charge_point_id", ['01a0f039-7685-4a7f-9ef6-8d262a7898fb', '7af0d94b-e864-4ffd-9c30-8970831f3870', 'c2e32e4a-4387-4cd4-bb40-dde977bc56b1'])
+    assert_expected_value("transaction_id", [1, 5, 7])
+    assert_expected_value("meter_start", [0, 0, 0])
+    assert_expected_value("meter_start", [0, 0, 0])
+    assert_expected_value("start_timestamp",  ['2023-01-01T12:54:04.750286+00:00', '2023-01-01T15:20:29.693922+00:00', '2023-01-01T17:48:01.776488+00:00'])
+    assert_expected_value("stop_timestamp",  ['2023-01-01T17:11:31.399112+00:00', '2023-01-01T17:48:30.073819+00:00', '2023-01-01T20:57:10.917742+00:00'])
+    
+    print("All tests pass! :)")
+
+    
+test_join_stop_with_start_unit()
 
 # COMMAND ----------
 
@@ -700,9 +901,20 @@ def convert_start_stop_timestamp_to_timestamp_type(input_df: DataFrame) -> DataF
     return input_df
     ###
 
-    df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json). \
-    transform(join_with_start_transaction_request, df.filter((df.action == "StartTransaction") & (df.message_type == 2)).transform(convert_start_transaction_request_json)). \
-    transform(join_with_stop_transaction_request, df.filter((df.action == "StopTransaction") & (df.message_type == 2)).transform(convert_stop_transaction_request_json)).printSchema()
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type)
+display(result)
 
 # COMMAND ----------
 
@@ -714,9 +926,21 @@ def convert_start_stop_timestamp_to_timestamp_type(input_df: DataFrame) -> DataF
     return input_df.withColumn("start_timestamp", to_timestamp("start_timestamp")).withColumn("stop_timestamp", to_timestamp("stop_timestamp"))
     ###
 
-df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json). \
-    transform(join_with_start_transaction_request, df.filter((df.action == "StartTransaction") & (df.message_type == 2)).transform(convert_start_transaction_request_json)). \
-    transform(join_with_stop_transaction_request, df.filter((df.action == "StopTransaction") & (df.message_type == 2)).transform(convert_stop_transaction_request_json)).printSchema()
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type)
+
+result.printSchema
 
 
 # COMMAND ----------
@@ -740,25 +964,32 @@ test_convert_start_stop_timestamp_to_timestamp_type_unit(spark, convert_start_st
 
 from pyspark.sql.types import TimestampType
 def test_convert_start_stop_timestamp_to_timestamp_type():
-    result = df_transactions.transform(
-        join_transactions_with_stop_transactions,
-        df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-    ).transform(rename_timestamp_to_stop_timestamp).transform(convert_start_stop_timestamp_to_timestamp_type)
+    result = df.transform(return_stop_transaction_requests). \
+        transform(convert_stop_transaction_request_json). \
+        transform(
+            join_stop_with_start, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 3)). \
+                transform(convert_start_transaction_response_json).\
+                transform(
+                    join_with_start_transaction_request, 
+                    df.filter(
+                        (df.action == "StartTransaction") & (df.message_type == 2)
+                    ).transform(convert_start_transaction_request_json))). \
+        transform(convert_start_stop_timestamp_to_timestamp_type)
     
     result_count = result.count()
-    expected_count = 27
+    expected_count = 95
     assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
     
     result_schema = result.schema
     expected_schema = StructType([
-        StructField("transaction_id", IntegerType(), True), 
         StructField("charge_point_id", StringType(), True), 
-        StructField("id_tag", StringType(), True), 
-        StructField("start_timestamp", TimestampType(), True), 
+        StructField("transaction_id", IntegerType(), True), 
+        StructField("meter_start", IntegerType(), True), 
         StructField("meter_stop", IntegerType(), True), 
-        StructField("stop_timestamp", TimestampType(), True), 
-        StructField("reason", StringType(), True), 
-        StructField("transaction_data", ArrayType(StringType(), True), True),
+        StructField("start_timestamp", TimestampType(), True), 
+        StructField("stop_timestamp", TimestampType(), True)
     ])
     assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
     
@@ -769,36 +1000,30 @@ test_convert_start_stop_timestamp_to_timestamp_type()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Calculate the Charge Session Duration
-# MAGIC Now that we have our `start_timestamp` and `stop_timestamp` columns in the appropriate type, we now can calculate the time in minutes of the charge.
+# MAGIC ### EXERCISE: Calculate the Charge Transaction Duration (total_time)
+# MAGIC Now that we have our `start_timestamp` and `stop_timestamp` columns in the appropriate type, we now can calculate the time in hours of the charge by subtracting the `start_timestamp` from the `stop_timestamp` column and doing some arithmetic.
 # MAGIC 
 # MAGIC Current schema:
 # MAGIC ```
 # MAGIC root
-# MAGIC  |-- transaction_id: integer (nullable = true)
 # MAGIC  |-- charge_point_id: string (nullable = true)
-# MAGIC  |-- id_tag: string (nullable = true)
-# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- meter_start: integer (nullable = true)
 # MAGIC  |-- meter_stop: integer (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
 # MAGIC  |-- stop_timestamp: timestamp (nullable = true)
-# MAGIC  |-- reason: string (nullable = true)
-# MAGIC  |-- transaction_data: array (nullable = true)
-# MAGIC  |    |-- element: string (containsNull = true)
 # MAGIC ```
 # MAGIC 
 # MAGIC Expected schema:
 # MAGIC ```
 # MAGIC root
-# MAGIC  |-- transaction_id: integer (nullable = true)
 # MAGIC  |-- charge_point_id: string (nullable = true)
-# MAGIC  |-- id_tag: string (nullable = true)
-# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- meter_start: integer (nullable = true)
 # MAGIC  |-- meter_stop: integer (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
 # MAGIC  |-- stop_timestamp: timestamp (nullable = true)
-# MAGIC  |-- charge_duration_minutes: double (nullable = true)       // NEW
-# MAGIC  |-- reason: string (nullable = true)
-# MAGIC  |-- transaction_data: array (nullable = true)
-# MAGIC  |    |-- element: string (containsNull = true)
+# MAGIC  |-- total_time: double (nullable = true) 
 # MAGIC ```
 # MAGIC 
 # MAGIC Round to two decimal places (note: it might not appear as two decimal places in the resulting Dataframe as a result of rendering).
@@ -809,32 +1034,57 @@ test_convert_start_stop_timestamp_to_timestamp_type()
 
 from pyspark.sql.functions import round
 
-def calculate_charge_duration_minutes(input_df: DataFrame) -> DataFrame:
+def calculate_total_time_hours(input_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
     return input_df
     ###
 
-df_transactions.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-).transform(rename_timestamp_to_stop_timestamp).transform(convert_start_stop_timestamp_to_timestamp_type).transform(calculate_charge_duration_minutes).show()
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type). \
+    transform(calculate_total_time_hours)
+
+display(result)
 
 # COMMAND ----------
 
 ######### SOLUTION ##########
 from pyspark.sql.functions import round
 
-def calculate_charge_duration_minutes(input_df: DataFrame) -> DataFrame:
+def calculate_total_time_hours(input_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
+    seconds_in_one_hour = 3600
     return input_df \
-        .withColumn("charge_duration_minutes", col("stop_timestamp").cast("long")/60 - col("start_timestamp").cast("long")/60) \
-        .withColumn("charge_duration_minutes", round(col("charge_duration_minutes").cast(DoubleType()),2))
+        .withColumn("total_time", col("stop_timestamp").cast("long")/seconds_in_one_hour - col("start_timestamp").cast("long")/seconds_in_one_hour) \
+        .withColumn("total_time", round(col("total_time").cast(DoubleType()),2))
     ###
 
-df_transactions.transform(
-    join_transactions_with_stop_transactions,
-    df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-).transform(rename_timestamp_to_stop_timestamp).transform(convert_start_stop_timestamp_to_timestamp_type).transform(calculate_charge_duration_minutes).show()
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type). \
+    transform(calculate_total_time_hours)
+
+display(result)
 
 # COMMAND ----------
 
@@ -843,9 +1093,9 @@ df_transactions.transform(
 
 # COMMAND ----------
 
-from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_calculate_charge_duration_minutes_unit
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_calculate_total_time_hours_unit
 
-test_calculate_charge_duration_minutes_unit(spark, calculate_charge_duration_minutes)
+test_calculate_total_time_hours_unit(spark, calculate_total_time_hours)
 
 # COMMAND ----------
 
@@ -857,38 +1107,189 @@ test_calculate_charge_duration_minutes_unit(spark, calculate_charge_duration_min
 from pyspark.sql.types import TimestampType
 
 def test_calculate_charge_duration_minutes():
-    result = df_transactions.transform(
-        join_transactions_with_stop_transactions,
-        df.transform(return_stoptransaction).transform(convert_stop_transaction_json).transform(flatten_json)
-    ).transform(rename_timestamp_to_stop_timestamp).transform(convert_start_stop_timestamp_to_timestamp_type).transform(calculate_charge_duration_minutes)
+    result = df.transform(return_stop_transaction_requests). \
+        transform(convert_stop_transaction_request_json). \
+        transform(
+            join_stop_with_start, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 3)). \
+                transform(convert_start_transaction_response_json).\
+                transform(
+                    join_with_start_transaction_request, 
+                    df.filter(
+                        (df.action == "StartTransaction") & (df.message_type == 2)
+                    ).transform(convert_start_transaction_request_json))). \
+        transform(convert_start_stop_timestamp_to_timestamp_type). \
+        transform(calculate_total_time_hours)
     print("Transformed DF:")
     result.show()
     result.printSchema()
     
     result_count = result.count()
-    expected_count = 27
+    expected_count = 95
     assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
     
     result_schema = result.schema
     expected_schema = StructType([
-        StructField("transaction_id", IntegerType(), True), 
         StructField("charge_point_id", StringType(), True), 
-        StructField("id_tag", StringType(), True), 
-        StructField("start_timestamp", TimestampType(), True), 
+        StructField("transaction_id", IntegerType(), True), 
+        StructField("meter_start", IntegerType(), True), 
         StructField("meter_stop", IntegerType(), True), 
+        StructField("start_timestamp", TimestampType(), True), 
         StructField("stop_timestamp", TimestampType(), True), 
-        StructField("reason", StringType(), True), 
-        StructField("transaction_data", ArrayType(StringType(), True), True),
-        StructField("charge_duration_minutes", DoubleType(), True)
+        StructField("total_time", DoubleType(), True)
     ])
     assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
     
-    result_charge_duration_minutes = [x.charge_duration_minutes for x in result.collect()]
-    expected_charge_duration_minutes = [28.0, 32.0, 46.0, 16.0, 42.0, 36.0, 26.0, 46.0, 32.0, 8.0, 34.0, 42.0, 48.0, 28.0, 52.0, 46.0, 46.0, 10.0, 14.0, 50.0, 48.0, 26.0, 44.0, 12.0, 12.0, 14.0, 24.0]
-    assert result_charge_duration_minutes == expected_charge_duration_minutes, f"expected {expected_charge_duration_minutes}, but got {result_charge_duration_minutes}"
+    result_total_time = [x.total_time for x in result.sort(col("transaction_id")).collect()]
+    expected_total_time = [4.29, 9.39, 7.89, 7.5, 2.47, 10.84, 3.15, 2.68, 6.03, 2.03, 4.03, 4.18, 4.64, 2.7, 9.21, 7.05, 10.5, 8.55, 8.9, 11.95, 11.38, 10.25, 3.55, 3.82, 9.17, 6.19, 6.28, 11.35, 4.18, 11.92, 2.16, 7.88, 8.44, 4.75, 7.14, 6.52, 5.76, 11.11, 9.44, 8.61, 2.7, 5.2, 8.04, 3.19, 3.37, 11.94, 10.39, 10.9, 2.02, 2.56, 10.33, 6.94, 4.88, 7.81, 5.56, 4.21, 2.97, 11.87, 9.16, 3.24, 7.23, 6.97, 11.86, 6.41, 5.96, 7.4, 9.02, 10.28, 4.87, 5.46, 10.53, 7.68, 10.93, 6.84, 7.09, 4.94, 10.84, 5.81, 5.36, 8.9, 5.56, 9.05, 2.48, 2.58, 2.91, 8.91, 8.87, 3.51, 10.82, 7.03, 8.92, 5.93, 2.03, 2.96, 2.28]
+    assert result_total_time == expected_total_time, f"expected {expected_total_time}, but got {result_total_time}"
     print("All tests passed! :)")
     
 test_calculate_charge_duration_minutes()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Calculate total_energy
+# MAGIC Let's add a column for the `total_energy`. Subtract `meter_start` from `meter_stop`.
+# MAGIC 
+# MAGIC Current schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- meter_start: integer (nullable = true)
+# MAGIC  |-- meter_stop: integer (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- stop_timestamp: timestamp (nullable = true)
+# MAGIC  |-- total_time: double (nullable = true) 
+# MAGIC ```
+# MAGIC 
+# MAGIC Expected schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- meter_start: integer (nullable = true)
+# MAGIC  |-- meter_stop: integer (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- stop_timestamp: timestamp (nullable = true)
+# MAGIC  |-- total_time: double (nullable = true) 
+# MAGIC  |-- total_energy: double (nullable = true) 
+# MAGIC ```
+
+# COMMAND ----------
+
+from pyspark.sql.functions import round
+
+def calculate_total_energy(input_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type). \
+    transform(calculate_total_time_hours). \
+    transform(calculate_total_energy)
+
+display(result)
+
+# COMMAND ----------
+
+######### SOLUTION ##########
+from pyspark.sql.functions import round
+
+def calculate_total_energy(input_df: DataFrame) -> DataFrame:
+    ### YOUR CODE HERE
+    return input_df \
+        .withColumn("total_energy", col("meter_stop") - col("meter_start")) \
+        .withColumn("total_energy", round(col("total_energy").cast(DoubleType()),2))
+    ###
+
+result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type). \
+    transform(calculate_total_time_hours). \
+    transform(calculate_total_energy)
+
+display(result)
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_calculate_total_energy_unit
+
+test_calculate_total_energy_unit(spark, calculate_total_energy)
+
+# COMMAND ----------
+
+from pyspark.sql.types import TimestampType
+
+def test_calculate_total_energy():
+    result = df.transform(return_stop_transaction_requests). \
+        transform(convert_stop_transaction_request_json). \
+        transform(
+            join_stop_with_start, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 3)). \
+                transform(convert_start_transaction_response_json).\
+                transform(
+                    join_with_start_transaction_request, 
+                    df.filter(
+                        (df.action == "StartTransaction") & (df.message_type == 2)
+                    ).transform(convert_start_transaction_request_json))). \
+        transform(convert_start_stop_timestamp_to_timestamp_type). \
+        transform(calculate_total_time_hours).\
+        transform(calculate_total_energy)
+
+    print("Transformed DF:")
+    result.show()
+    result.printSchema()
+    
+    result_count = result.count()
+    expected_count = 95
+    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField("charge_point_id", StringType(), True), 
+        StructField("transaction_id", IntegerType(), True), 
+        StructField("meter_start", IntegerType(), True), 
+        StructField("meter_stop", IntegerType(), True), 
+        StructField("start_timestamp", TimestampType(), True), 
+        StructField("stop_timestamp", TimestampType(), True), 
+        StructField("total_time", DoubleType(), True),
+        StructField("total_energy", DoubleType(), True),
+    ])
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+    result_ordered = result.sort(col("transaction_id"))
+    result_total_energy = [x.total_energy for x in result_ordered.collect()]
+    expected_total_energy = [51219.0, 146616.0, 151794.0, 106126.0, 31374.0, 193968.0, 50781.0, 42121.0, 95634.0, 23897.0, 43316.0, 43746.0, 77118.0, 34277.0, 144768.0, 98641.0, 170171.0, 137738.0, 149056.0, 199170.0, 227549.0, 117548.0, 42235.0, 48498.0, 145084.0, 83495.0, 76078.0, 174636.0, 74102.0, 177470.0, 25978.0, 144815.0, 105303.0, 86140.0, 133118.0, 102056.0, 92845.0, 176318.0, 136581.0, 155487.0, 36414.0, 96265.0, 125985.0, 37903.0, 52334.0, 211115.0, 182410.0, 157962.0, 21851.0, 23476.0, 164136.0, 95713.0, 86874.0, 104892.0, 75476.0, 60495.0, 47719.0, 229061.0, 128245.0, 43527.0, 94194.0, 112741.0, 210995.0, 98534.0, 98066.0, 116117.0, 147795.0, 147573.0, 62259.0, 73185.0, 197632.0, 127848.0, 172165.0, 74999.0, 105432.0, 78858.0, 198323.0, 101860.0, 73797.0, 145058.0, 83244.0, 151649.0, 29350.0, 33778.0, 38108.0, 123547.0, 149542.0, 37542.0, 160941.0, 95735.0, 158472.0, 91462.0, 25614.0, 29244.0, 25278.0]
+    assert result_total_energy == expected_total_energy, f"expected {expected_total_energy}, but got {result_total_energy}"
+    print("All tests passed! :)")
+    
+test_calculate_total_energy()
 
 # COMMAND ----------
 
