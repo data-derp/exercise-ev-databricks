@@ -8,7 +8,6 @@
 # MAGIC | total_energy | How much charge was dispensed (StopTransactionRequest.meter_stop - StartTransactionRequest.meter_start) |
 # MAGIC | total_time |  How long the transaction was (StopTransactionRequest.timestamp - StartTransactionRequest.timestamp) | 
 # MAGIC | total_parking_time |  Total time of the transaction - time spent charging (because charging can be paused in the middle of a transaction) | 
-# MAGIC | charging_periods |  The chunks of time spend actually charging (in reality, we'd group this additionlly by different electricity tariffs (e.g. one day tariff, one night tariff), but let's ignore cost for now) | 
 # MAGIC 
 # MAGIC 
 # MAGIC We can calculate this from our OCPP Event data. After the Charge Point has registered itself with the CSMS (Charging Station Management System), it sends information via the OCPP protocol about the Transactions, in the following order:
@@ -65,29 +64,22 @@ helpers.clean_working_directory()
 
 # MAGIC %md
 # MAGIC ### The Final Shape of Data
-# MAGIC Before we start to ingest our data, it's helpful to know in what direction we're going. 
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Contents
-# MAGIC * Data Ingestion
-# MAGIC   * Read OCPP Data (data.csv)
-# MAGIC   * Read Transactions Data (transactions.csv)
-# MAGIC * Data Transformation
-# MAGIC   * Return only StopTransaction (filter)
-# MAGIC   * Unpack JSON in StopTransaction (from_json)
-# MAGIC   * Flattening your Data (select)
-# MAGIC   * Join Transactions with Stop Transaction Records that exist for those transactions (inner join)
-# MAGIC   * Rename timestamp column to "stop_timestamp" (withColumnRenamed)
-# MAGIC   * Convert the start_timestamp and stop_timestamp fields to timestamp type (to_timestamp, withColumn)
-# MAGIC   * Calculate the Charge Session Duration (withColumn, cast, round, mathops)
-# MAGIC   * Cleanup extra columns (select)
-# MAGIC   * Unpack JSON in StopTransaction (from_json)
-# MAGIC   * Flatten MeterValues JSON (select, explode, alias)
-# MAGIC   * Most recent Energy.Active.Import.Register Reading (filter, to_timestamp, window, order by)
-# MAGIC   * Cast Value to double (cast)
-# MAGIC   * All together now! (left join)
+# MAGIC Before we start to ingest our data, it's helpful to know in what direction we're going. A good guideline is to know where you want to be and work backwards to your data sources to identify how we'll need to transform or reshape our data. 
+# MAGIC 
+# MAGIC **Target Schema**
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- start_timestamp: timestamp (nullable = true)
+# MAGIC  |-- stop_timestamp: timestamp (nullable = true)
+# MAGIC  |-- total_time: double (nullable = true)
+# MAGIC  |-- total_energy: double (nullable = true)
+# MAGIC  |-- total_parking_time: double (nullable = true)
+# MAGIC ```
+# MAGIC 
+# MAGIC #### Reflect
+# MAGIC Having looked at the example data in the table above, can you trace how to calculate these fields to the various OCPP events?
 
 # COMMAND ----------
 
@@ -516,6 +508,8 @@ test_convert_start_transaction_response_json_unit(spark, convert_start_transacti
 
 # COMMAND ----------
 
+from typing import List, Any
+
 def test_convert_start_transaction_response_json():
     result = df.filter((df.action == "StartTransaction") & (df.message_type == 3)).transform(convert_start_transaction_response_json)
     
@@ -620,7 +614,7 @@ display(df.filter((df.action == "StartTransaction") & (df.message_type == 2)).tr
 
 # COMMAND ----------
 
-from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_convert_start_transaction_response_json_unit
+from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_convert_start_transaction_request_unit
 
 test_convert_start_transaction_request_unit(spark, convert_start_transaction_request_json)
 
@@ -822,7 +816,6 @@ display(result)
 
 # COMMAND ----------
 
-
 from exercise_ev_databricks_unit_tests.final_charge_time_charge_dispensed_completed_charges import test_join_stop_with_start_unit
 
 test_join_stop_with_start_unit(spark, join_stop_with_start)
@@ -950,9 +943,7 @@ result = df.transform(return_stop_transaction_requests). \
                     (df.action == "StartTransaction") & (df.message_type == 2)
                 ).transform(convert_start_transaction_request_json))). \
     transform(convert_start_stop_timestamp_to_timestamp_type)
-
-result.printSchema()
-
+display(result)
 
 # COMMAND ----------
 
@@ -1368,7 +1359,6 @@ test_calculate_total_energy()
 
 display(df.filter(df.action == "MeterValues"))
 
-
 # COMMAND ----------
 
 def convert_metervalues_to_json(input_df: DataFrame) -> DataFrame:
@@ -1588,8 +1578,6 @@ display(result)
 
 
 
-
-
 # COMMAND ----------
 
 ########## SOLUTION ###########
@@ -1703,6 +1691,23 @@ def join_with_target_df(input_df: DataFrame, joined_df: DataFrame) -> DataFrame:
     return input_df
     ###
 
+result = df.transform(return_stop_transaction_requests). \
+transform(convert_stop_transaction_request_json). \
+transform(
+    join_stop_with_start, 
+    df.filter(
+        (df.action == "StartTransaction") & (df.message_type == 3)). \
+        transform(convert_start_transaction_response_json).\
+        transform(
+            join_with_start_transaction_request, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 2)
+            ).transform(convert_start_transaction_request_json))). \
+transform(convert_start_stop_timestamp_to_timestamp_type). \
+transform(calculate_total_time_hours). \
+transform(calculate_total_energy).transform(join_with_target_df, df.filter((df.action == "MeterValues") & (df.message_type == 2)).transform(convert_metervalues_to_json).transform(reshape_meter_values).transform(calculate_total_parking_time))
+display(result)
+
 # COMMAND ----------
 
 ######### SOLUTION #########
@@ -1724,6 +1729,23 @@ def join_with_target_df(input_df: DataFrame, joined_df: DataFrame) -> DataFrame:
         )
     ###
 
+result = df.transform(return_stop_transaction_requests). \
+transform(convert_stop_transaction_request_json). \
+transform(
+    join_stop_with_start, 
+    df.filter(
+        (df.action == "StartTransaction") & (df.message_type == 3)). \
+        transform(convert_start_transaction_response_json).\
+        transform(
+            join_with_start_transaction_request, 
+            df.filter(
+                (df.action == "StartTransaction") & (df.message_type == 2)
+            ).transform(convert_start_transaction_request_json))). \
+transform(convert_start_stop_timestamp_to_timestamp_type). \
+transform(calculate_total_time_hours). \
+transform(calculate_total_energy).transform(join_with_target_df, df.filter((df.action == "MeterValues") & (df.message_type == 2)).transform(convert_metervalues_to_json).transform(reshape_meter_values).transform(calculate_total_parking_time))
+display(result)
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -1743,25 +1765,22 @@ test_join_with_target_df_unit(spark, join_with_target_df)
 # COMMAND ----------
 
 def test_join_with_target_df():
-    target_df = df.transform(return_stop_transaction_requests). \
-        transform(convert_stop_transaction_request_json). \
-        transform(
-            join_stop_with_start, 
-            df.filter(
-                (df.action == "StartTransaction") & (df.message_type == 3)). \
-                transform(convert_start_transaction_response_json).\
-                transform(
-                    join_with_start_transaction_request, 
-                    df.filter(
-                        (df.action == "StartTransaction") & (df.message_type == 2)
-                    ).transform(convert_start_transaction_request_json))). \
-        transform(convert_start_stop_timestamp_to_timestamp_type). \
-        transform(calculate_total_time_hours). \
-        transform(calculate_total_energy)
+    result = df.transform(return_stop_transaction_requests). \
+    transform(convert_stop_transaction_request_json). \
+    transform(
+        join_stop_with_start, 
+        df.filter(
+            (df.action == "StartTransaction") & (df.message_type == 3)). \
+            transform(convert_start_transaction_response_json).\
+            transform(
+                join_with_start_transaction_request, 
+                df.filter(
+                    (df.action == "StartTransaction") & (df.message_type == 2)
+                ).transform(convert_start_transaction_request_json))). \
+    transform(convert_start_stop_timestamp_to_timestamp_type). \
+    transform(calculate_total_time_hours). \
+    transform(calculate_total_energy).transform(join_with_target_df, df.filter((df.action == "MeterValues") & (df.message_type == 2)).transform(convert_metervalues_to_json).transform(reshape_meter_values).transform(calculate_total_parking_time))
 
-    total_parking_time_df = df.filter((df.action == "MeterValues") & (df.message_type == 2)).transform(convert_metervalues_to_json).transform(reshape_meter_values).transform(calculate_total_parking_time)
-
-    result = target_df.transform(join_with_target_df, total_parking_time_df)
     display(result)
 
     result_schema = result.schema
