@@ -152,8 +152,8 @@ def return_stop_transaction_requests(input_df: DataFrame) -> DataFrame:
     return input_df
     ###
     
-stop_transaction_df = df.transform(return_stop_transaction_requests)
-display(stop_transaction_df)
+stop_transaction_request_df = df.transform(return_stop_transaction_requests)
+display(stop_transaction_request_df)
 
 # COMMAND ----------
 
