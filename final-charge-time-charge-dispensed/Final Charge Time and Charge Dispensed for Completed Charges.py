@@ -259,7 +259,7 @@ stop_transaction_request_df.select(col("body.transaction_id"))
 # MAGIC Unpack the `body` column (currently a JSON string) for just the `StopTransaction` messages into a new column called `new_body` using the `with_column` and `from_json` functions and the following schema:
 # MAGIC ```
 # MAGIC root
-# MAGIC  |-- meter_stop: string (nullable = true)
+# MAGIC  |-- meter_stop: integer (nullable = true)
 # MAGIC  |-- timestamp: string (nullable = true)
 # MAGIC  |-- transaction_id: integer (nullable = true)
 # MAGIC  |-- reason: string (nullable = true)
