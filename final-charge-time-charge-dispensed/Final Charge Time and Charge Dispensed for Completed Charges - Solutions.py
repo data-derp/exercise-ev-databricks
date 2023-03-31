@@ -21,8 +21,9 @@
 # MAGIC | StopTransaction | Request | Event sent when the car has stopped a Transaction. It contains a transaction ID, the stop timestamp of the charge, and the meter reading (`meter_stop`) at the time of the event. | [example json](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/StopTransactionRequest.json) |
 # MAGIC | StopTransaction | Response | A response sent back from the Central System to the Charge Point upon receiving a MeterValues request. | [example json](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/StopTransactionResponse.json) |
 # MAGIC 
-# MAGIC 
-# MAGIC In this exercise, we'll inspect the historial data that we have and calculate the total charge per Charge Point for all completed transactions.
+# MAGIC \* The example payloads are decorated with a few extra fields including the `message_id`, `message_type`, and `charge_point_id` which generally comes from the CSMS. The actual payloads from the Charge Point are in the `body` field.
+# MAGIC
+# MAGIC In this exercise, we'll inspect the historical data that we have and create a CDR for all completed transactions.
 
 # COMMAND ----------
 
