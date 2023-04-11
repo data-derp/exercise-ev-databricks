@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Batch Processing - Bronze Layer - Data Ingestion
+# MAGIC # Batch Processing - Bronze Layer
 # MAGIC 
 # MAGIC When creating long-term storage for analytical use cases, the first step is to ingest data for the source, with a shape as close as possible to the original shape. As the first step in our data processing journey, this allows us to 
 # MAGIC 1. create a "checkpoint" or "save zone" so that we can more easily debug issues and determine if there were issues at this step or downstream
@@ -45,7 +45,7 @@ helpers.clean_working_directory()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Read OCPP Data
+# MAGIC ## Read OCPP Data
 # MAGIC We've done this a couple of times before! Run the following cells to download the data to local storage and create a DataFrame from it.
 
 # COMMAND ----------
@@ -89,27 +89,6 @@ display(df)
 
 # COMMAND ----------
 
-############### SOLUTION ##################
-from pyspark.sql.functions import to_timestamp, col, month, dayofmonth, hour, year
-
-def create_partition_columns(input_df: DataFrame) -> DataFrame:
-    input_df_converted_timestamp = input_df.withColumn("write_timestamp", to_timestamp(col("write_timestamp")))
-    ### YOUR CODE HERE ###
-    return input_df_converted_timestamp. \
-        withColumn("write_timestamp", to_timestamp(col("write_timestamp"))). \
-        withColumn("year", year(col("write_timestamp"))). \
-        withColumn("month", month(col("write_timestamp"))). \
-        withColumn("day", dayofmonth(col("write_timestamp"))). \
-        withColumn("hour", hour(col("write_timestamp")))
-    ###
-    
-display(df.transform(create_partition_columns))
-    
-    
-
-
-# COMMAND ----------
-
 from pyspark.sql.functions import to_timestamp, col, month, dayofmonth, hour, year
 
 def create_partition_columns(input_df: DataFrame) -> DataFrame:
@@ -146,33 +125,70 @@ display(df.transform(create_partition_columns))
 
 # MAGIC %md
 # MAGIC #### Unit Test
-# MAGIC TBD
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.batch_processing_bronze import test_create_partition_columns_unit
+    
+test_create_partition_columns_unit(spark, create_partition_columns)
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC #### E2E Test
-# MAGIC TBD
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.batch_processing_bronze import test_create_partition_columns_e2e
+
+    
+test_create_partition_columns_e2e(
+    df.transform(create_partition_columns),
+    display
+)
+
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Repartition, Partition, and Write
-# MAGIC TBD
+# MAGIC ## EXERCISE: Repartition, Partition, and Write
+# MAGIC Now that we have our `year`, `month`, `day`, `hour` columns, we can use those "metadata columns" to write our data to the relevant directories. This is called "partitioning" and we'll utilise the [partitionBy](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrameWriter.partitionBy.html) function to do so. In addition to `partitionBy`, we'll use the [parquet writer](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrameWriter.parquet.html)  along with [mode="overwrite"](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrameWriter.parquet.html) to formally write our data to the specified `out_dir`.
 # MAGIC 
-# MAGIC **Note** this might take a while... grab a coffee.
+# MAGIC **Note** this might take a while (around 4-5 minutes)... grab a coffee.
 
 # COMMAND ----------
 
 def write(input_df: DataFrame):
+    out_dir = f"{working_directory}/output/"
+    
+    ### YOUR CODE HERE ###
     input_df.\
         repartition(col("year"), col("month"), col("day"), col("hour")). \
         write. \
         partitionBy("year", "month", "day", "hour"). \
         mode("overwrite"). \
-        parquet(f"{working_directory}/output/")
+        parquet(out_dir)
+    ###
     
-df.transform(create_partition_columns).transform(write)
+write(df.transform(create_partition_columns))
+
+# COMMAND ----------
+
+########## SOLUTION ############
+
+def write(input_df: DataFrame):
+    out_dir = f"{working_directory}/output/"
+    
+    ### YOUR CODE HERE ###
+    input_df.\
+        repartition(col("year"), col("month"), col("day"), col("hour")). \
+        write. \
+        partitionBy("year", "month", "day", "hour"). \
+        mode("overwrite"). \
+        parquet(out_dir)
+    ###
+    
+write(df.transform(create_partition_columns))
 
 # COMMAND ----------
 
@@ -189,14 +205,24 @@ dbutils.fs.ls(f"{working_directory}/output/year=2023")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC #### Unit Test
-# MAGIC TBD
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.batch_processing_bronze import test_write_yyyy_e2e, test_write_mm_e2e, test_write_dd_e2e
+
+    
+test_write_yyyy_e2e(dbutils.fs.ls(f"{working_directory}/output/year=2023"), spark, display)
+test_write_mm_e2e(dbutils.fs.ls(f"{working_directory}/output/year=2023/month=1"), spark, display)
+test_write_dd_e2e(dbutils.fs.ls(f"{working_directory}/output/year=2023/month=1/day=1"), spark, display)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC #### E2E Test
-# MAGIC TBD
+# MAGIC ## Reflect
+# MAGIC * How many in-memory partitions were created as a result of the write?
+# MAGIC * Why did it take so long to write?
+# MAGIC * How many minutes were spent rendering in the notebook as opposed to the actual write?
 
 # COMMAND ----------
 
