@@ -321,8 +321,7 @@ def meter_values_request_flatten(input_df: DataFrame):
         withColumn("measurand", col("sampled_value.measurand")).\
         withColumn("phase", col("sampled_value.phase")).\
         withColumn("value", round(col("sampled_value.value").cast(DoubleType()),2)).\
-        select(col("new_body.transaction_id").alias("transaction_id"), "timestamp", "measurand", "phase", "value").\
-        filter((col("measurand") == "Power.Active.Import") & (col("phase").isNull()))
+        select("message_id", "message_type", "charge_point_id", "action", "write_timestamp", col("new_body.transaction_id").alias("transaction_id"), "timestamp", "measurand", "phase", "value")
 
 display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json).transform(meter_values_request_flatten))
 
