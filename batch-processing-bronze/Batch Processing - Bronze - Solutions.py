@@ -162,12 +162,7 @@ def write(input_df: DataFrame):
     out_dir = f"{working_directory}/output/"
     
     ### YOUR CODE HERE ###
-    input_df.\
-        repartition(col("year"), col("month"), col("day"), col("hour")). \
-        write. \
-        partitionBy("year", "month", "day", "hour"). \
-        mode("overwrite"). \
-        parquet(out_dir)
+    input_df
     ###
     
 write(df.transform(create_partition_columns))
