@@ -177,6 +177,7 @@ test_write_dd_e2e(dbutils.fs.ls(f"{working_directory}/output/year=2023/month=1/d
 # MAGIC %md
 # MAGIC ## Reflect
 # MAGIC * How many in-memory partitions were created as a result of the write?
+# MAGIC * Why did we need to repartition?
 # MAGIC * Why did it take so long to write?
 # MAGIC * How many minutes were spent rendering in the notebook as opposed to the actual write?
 
