@@ -1,8 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Batch Processing - Silver Layer
+# MAGIC # Batch Processing - Silver Tier
 # MAGIC 
-# MAGIC In the last exercise, we took our data and partitioned them by YYYY, MM, DD, and HH. In this exercise, we'll take our first step towards curation and cleanup by:
+# MAGIC In the last exercise, we took our data wrote it to the Parquet format, ready for us to pick up in the Silver Tier. In this exercise, we'll take our first step towards curation and cleanup by:
 # MAGIC * Unpacking strings containing json to JSON
 # MAGIC * Flattening our data (unpack nested structures and bring to top level)
 # MAGIC 
@@ -1938,8 +1938,125 @@ display(df.transform(meter_values_request_filter).transform(meter_values_request
 
 # COMMAND ----------
 
+from pyspark.sql.types import TimestampType
+from datetime import datetime
+
+def test_meter_values_request_flatten_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "MeterValues",
+        "message_id": "f8635eee-dd37-4c80-97f9-6a4f1ad3a40b",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "write_timestamp": "2022-10-02T15:30:17.000345+00:00",
+        "body": '{"connector_id": 1, "meter_value": [{"timestamp": "2022-10-02T15:30:17.000345+00:00", "sampled_value": [{"value": "0.00", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L1-N", "location": "Outlet", "unit": "V"}, {"value": "13.17", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L1", "location": "Outlet", "unit": "A"}, {"value": "3663.49", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L1", "location": "Outlet", "unit": "W"}, {"value": "238.65", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L2-N", "location": "Outlet", "unit": "V"}, {"value": "14.28", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L2", "location": "Outlet", "unit": "A"}, {"value": "3086.46", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L2", "location": "Outlet", "unit": "W"}, {"value": "215.21", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L3-N", "location": "Outlet", "unit": "V"}, {"value": "14.63", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L3", "location": "Outlet", "unit": "A"}, {"value": "4014.47", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L3", "location": "Outlet", "unit": "W"}, {"value": "254.65", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": null, "location": "Outlet", "unit": "Wh"}, {"value": "11.68", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L1-N", "location": "Outlet", "unit": "V"}, {"value": "3340.61", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L1", "location": "Outlet", "unit": "A"}, {"value": "7719.95", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L1", "location": "Outlet", "unit": "W"}, {"value": "0.00", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L2-N", "location": "Outlet", "unit": "V"}, {"value": "3.72", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L2", "location": "Outlet", "unit": "A"}, {"value": "783.17", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L2", "location": "Outlet", "unit": "W"}, {"value": "242.41", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L3-N", "location": "Outlet", "unit": "V"}, {"value": "3.46", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L3", "location": "Outlet", "unit": "A"}, {"value": "931.52", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L3", "location": "Outlet", "unit": "W"}, {"value": "1330", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": null, "location": "Outlet", "unit": "W"},{"value": "7.26", "context": "Sample.Periodic", "format": "Raw", "measurand": "Energy.Active.Import.Register", "phase": null, "location": "Outlet", "unit": "Wh"}]}], "transaction_id": 1}'
+    },
+    ])
+
+    body_schema = StructType([
+            StructField("connector_id", IntegerType(), True),
+            StructField("transaction_id", IntegerType(), True),
+            StructField("meter_value", ArrayType(StructType([
+                StructField("timestamp", StringType(), True),
+                StructField("sampled_value", ArrayType(StructType([
+                    StructField("value", StringType(), True),
+                    StructField("context", StringType(), True),
+                    StructField("format", StringType(), True),
+                    StructField("measurand", StringType(), True),
+                    StructField("phase", StringType(), True),
+                    StructField("unit", StringType(), True)
+                ]), True), True)
+            ]), True), True)
+        ])
+    
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_id", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("write_timestamp", StringType()),
+            StructField("body", StringType()),
+        ])
+    ).withColumn("new_body", from_json(col("body"), body_schema))
+    
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 21
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('timestamp', TimestampType(), True), 
+        StructField('measurand', StringType(), True), 
+        StructField('phase', StringType(), True), 
+        StructField('value', DoubleType(), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.timestamp for x in result.limit(2).collect()]
+    expected_data = [datetime(2022, 10, 2, 15, 30, 17, 345), datetime(2022, 10, 2, 15, 30, 17, 345)]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_meter_values_request_flatten_unit(spark, meter_values_request_flatten)
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_meter_values_request_flatten_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2621652
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('timestamp', TimestampType(), True), 
+        StructField('measurand', StringType(), True), 
+        StructField('phase', StringType(), True), 
+        StructField('value', DoubleType(), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.timestamp for x in result.sort(col("timestamp")).limit(3).collect()]
+    expected_data = [datetime(2023, 1, 1, 10, 43, 15, 900215), datetime(2023, 1, 1, 10, 43, 15, 900215), datetime(2023, 1, 1, 10, 43, 15, 900215)]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_meter_values_request_flatten_e2e(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json).transform(meter_values_request_flatten), spark, display)
 
 # COMMAND ----------
 
@@ -1949,75 +2066,270 @@ display(df.transform(meter_values_request_filter).transform(meter_values_request
 # COMMAND ----------
 
 out_dir = f"{working_directory}/output/"
+print(out_dir)
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Write StartTransaction Request to Parquet
+# MAGIC In this exercise, write the StartTransaction Request data to `f"{out_dir}/StartTransactionRequest"` in the [parquet format](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrameWriter.parquet.html?highlight=parquet#pyspark.sql.DataFrameWriter.parquet) using mode `overwrite`.
 
 # COMMAND ----------
 
-df.\
+def write_start_transaction_request(input_df: DataFrame):
+    output_directory = f"{out_dir}/StartTransactionRequest"
+    ### YOUR CODE HERE
+    input_df
+    ###
+    
+
+write_start_transaction_request(df.\
     transform(start_transaction_request_filter).\
     transform(start_transaction_request_unpack_json).\
-    transform(start_transaction_request_flatten).\
-    write.\
-    mode("overwrite").\
-    parquet(f"{out_dir}/StartTransactionRequest")
+    transform(start_transaction_request_flatten))
+
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionRequest")))
+
+# COMMAND ----------
+
+############ SOLUTION ##############
+
+def write_start_transaction_request(input_df: DataFrame):
+    output_directory = f"{out_dir}/StartTransactionRequest"
+    ### YOUR CODE HERE
+    input_df.\
+        write.\
+        mode("overwrite").\
+        parquet(output_directory)
+    ###
+    
+
+write_start_transaction_request(df.\
+    transform(start_transaction_request_filter).\
+    transform(start_transaction_request_unpack_json).\
+    transform(start_transaction_request_flatten))
+
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionRequest")))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+def test_write_start_transaction_request():
+    df = spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionRequest"))
+    df.show()
+    snappy_parquet_count = df.filter(col("name").endswith(".snappy.parquet")).count()
+    assert snappy_parquet_count == 1, f"Expected 1 .snappy.parquet file, but got {snappy_parquet_count}"
+    
+    success_count = df.filter(col("name") == "_SUCCESS").count()
+    assert success_count == 1, f"Expected 1 _SUCCESS file, but got {success_count}"
+    
+    print("All tests pass! :)")
+    
+test_write_start_transaction_request()
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Write StartTransaction Response to Parquet
+# MAGIC In this exercise, write the StartTransaction Response data to `f"{out_dir}/StartTransactionRequest"` in the [parquet format](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrameWriter.parquet.html?highlight=parquet#pyspark.sql.DataFrameWriter.parquet) using mode `overwrite`.
 
 # COMMAND ----------
 
-df.\
+def write_start_transaction_response(input_df: DataFrame):
+    output_directory = f"{out_dir}/StartTransactionResponse"
+    ### YOUR CODE HERE
+    input_df
+    ###
+
+write_start_transaction_response(df.\
     transform(start_transaction_response_filter).\
     transform(start_transaction_response_unpack_json).\
-    transform(start_transaction_response_flatten).\
-    write.\
-    mode("overwrite").\
-    parquet(f"{out_dir}/StartTransactionResponse")
+    transform(start_transaction_response_flatten))
+
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionResponse")))
+
+# COMMAND ----------
+
+############ SOLUTION ##############
+
+def write_start_transaction_response(input_df: DataFrame):
+    output_directory = f"{out_dir}/StartTransactionResponse"
+    ### YOUR CODE HERE
+    input_df.\
+        write.\
+        mode("overwrite").\
+        parquet(output_directory)
+    ###
+
+write_start_transaction_response(df.\
+    transform(start_transaction_response_filter).\
+    transform(start_transaction_response_unpack_json).\
+    transform(start_transaction_response_flatten))
+
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionResponse")))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+def test_write_start_transaction_response():
+    df = spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionResponse"))
+    df.show()
+    snappy_parquet_count = df.filter(col("name").endswith(".snappy.parquet")).count()
+    assert snappy_parquet_count == 1, f"Expected 1 .snappy.parquet file, but got {snappy_parquet_count}"
+    
+    success_count = df.filter(col("name") == "_SUCCESS").count()
+    assert success_count == 1, f"Expected 1 _SUCCESS file, but got {success_count}"
+    
+    print("All tests pass! :)")
+    
+test_write_start_transaction_response()
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Write StopTransaction Request to Parquet
+# MAGIC In this exercise, write the StopTransaction Request data to `f"{out_dir}/StartTransactionRequest"` in the [parquet format](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrameWriter.parquet.html?highlight=parquet#pyspark.sql.DataFrameWriter.parquet) using mode `overwrite`.
 
 # COMMAND ----------
 
-df.\
+def write_stop_transaction_request(input_df: DataFrame):
+    output_directory = f"{out_dir}/StopTransactionRequest"
+    ### YOUR CODE HERE
+    input_df
+    ###
+
+write_stop_transaction_request(df.\
     transform(stop_transaction_request_filter).\
     transform(stop_transaction_request_unpack_json).\
-    transform(stop_transaction_request_flatten).\
-    write.\
-    mode("overwrite").\
-    parquet(f"{out_dir}/StopTransactionRequest")
+    transform(stop_transaction_request_flatten))
+
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StopTransactionRequest")))
 
 # COMMAND ----------
+
+############ SOLUTION ##############
+
+def write_stop_transaction_request(input_df: DataFrame):
+    output_directory = f"{out_dir}/StopTransactionRequest"
+    ### YOUR CODE HERE
+    input_df.\
+        write.\
+        mode("overwrite").\
+        parquet(output_directory)
+    ###
+
+write_stop_transaction_request(df.\
+    transform(stop_transaction_request_filter).\
+    transform(stop_transaction_request_unpack_json).\
+    transform(stop_transaction_request_flatten))
 
 display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StopTransactionRequest")))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Write MeterValues Request to Parquet
-# MAGIC TODO: Why does this take 32.22 seconds??
+# MAGIC #### E2E Test
 
 # COMMAND ----------
 
-df.\
+def test_write_stop_transaction_request():
+    df = spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StopTransactionRequest"))
+    df.show()
+    snappy_parquet_count = df.filter(col("name").endswith(".snappy.parquet")).count()
+    assert snappy_parquet_count == 1, f"Expected 1 .snappy.parquet file, but got {snappy_parquet_count}"
+    
+    success_count = df.filter(col("name") == "_SUCCESS").count()
+    assert success_count == 1, f"Expected 1 _SUCCESS file, but got {success_count}"
+    
+    print("All tests pass! :)")
+    
+test_write_stop_transaction_request()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Write MeterValues Request to Parquet
+# MAGIC In this exercise, write the MeterValues Request data to `f"{out_dir}/StartTransactionRequest"` in the [parquet format](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrameWriter.parquet.html?highlight=parquet#pyspark.sql.DataFrameWriter.parquet) using mode `overwrite`.
+
+# COMMAND ----------
+
+def write_meter_values_request(input_df: DataFrame):
+    output_directory = f"{out_dir}/MeterValuesRequest"
+    ### YOUR CODE HERE
+    input_df
+    ###
+
+write_meter_values_request(df.\
     transform(meter_values_request_filter).\
     transform(meter_values_request_unpack_json).\
-    transform(meter_values_request_flatten).\
-    write.\
-    mode("overwrite").\
-    parquet(f"{out_dir}/MeterValuesRequest")
+    transform(meter_values_request_flatten))
+
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/MeterValuesRequest")))
 
 # COMMAND ----------
 
+############ SOLUTION ##############
+
+def write_meter_values_request(input_df: DataFrame):
+    output_directory = f"{out_dir}/MeterValuesRequest"
+    ### YOUR CODE HERE
+    input_df.\
+        write.\
+        mode("overwrite").\
+        parquet(output_directory)
+    ###
+
+write_meter_values_request(df.\
+    transform(meter_values_request_filter).\
+    transform(meter_values_request_unpack_json).\
+    transform(meter_values_request_flatten))
+
 display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/MeterValuesRequest")))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+def test_write_meter_values_request():
+    df = spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/MeterValuesRequest"))
+    df.show()
+    snappy_parquet_count = df.filter(col("name").endswith(".snappy.parquet")).count()
+    assert snappy_parquet_count == 1, f"Expected 1 .snappy.parquet file, but got {snappy_parquet_count}"
+    
+    success_count = df.filter(col("name") == "_SUCCESS").count()
+    assert success_count == 1, f"Expected 1 _SUCCESS file, but got {success_count}"
+    
+    print("All tests pass! :)")
+    
+test_write_meter_values_request()
+
+# COMMAND ----------
+
+df.select("action").distinct().show()
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Reflect
+# MAGIC Congrats for finishing the Batch Processing Silver Tier exercise! We now have unpacked and flattened data for:
+# MAGIC * StartTransaction Request
+# MAGIC * StartTransaction Response
+# MAGIC * StopTransaction Request
+# MAGIC * MeterValues Request
+# MAGIC 
+# MAGIC Hypothetically, we could have also done the same for the remaining actions (e.g. Heartbeat Request/Response, BootNotification Request/Response), but to save some time, we've only processed the actions that are relevant to the Gold layers that we'll build next (thin-slices, ftw!). You might have noticed that some of the processing steps were a bit repetitive and especially towards the end, could definitely be D.R.Y.'ed up (and would be in production code), but for the purposes of the exercise, we've gone the long route.
 
 # COMMAND ----------
 
