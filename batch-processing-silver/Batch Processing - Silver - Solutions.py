@@ -5,7 +5,12 @@
 # MAGIC In the last exercise, we took our data and partitioned them by YYYY, MM, DD, and HH. In this exercise, we'll take our first step towards curation and cleanup by:
 # MAGIC * Unpacking strings containing json to JSON
 # MAGIC * Flattening our data (unpack nested structures and bring to top level)
-# MAGIC * Casting ambiguous columns to types
+# MAGIC 
+# MAGIC We'll do this for:
+# MAGIC * StartTransaction Request
+# MAGIC * StartTransaction Response
+# MAGIC * StopTransaction Request
+# MAGIC * MeterValues Request
 
 # COMMAND ----------
 
@@ -52,11 +57,6 @@ print(input_dir)
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC **Note** this might take a while! Grab a coffee.
-
-# COMMAND ----------
-
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
@@ -64,7 +64,6 @@ def read_parquet(filepath: str) -> DataFrame:
     df = spark.read.parquet(filepath)
     return df
     
-# df = read_parquet(f"{input_dir}/output/year=2023")
 df = read_parquet(f"{input_dir}/output/")
 
 display(df)
@@ -79,25 +78,389 @@ display(df)
 
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Request Filter
+# MAGIC In this exercise, filter for the `StartTransaction` action and the "Request" (`2`) message_type.
 
 # COMMAND ----------
 
 def start_transaction_request_filter(input_df: DataFrame):
-    return input_df.filter((input_df.action == "StartTransaction") & (input_df.message_type == 2))
+    ### YOUR CODE HERE
+    action = None
+    message_type = None
+    ###
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
+
+display(df.transform(start_transaction_request_filter))
+
+# COMMAND ----------
+
+########## SOLUTION ###########
+
+def start_transaction_request_filter(input_df: DataFrame):
+    ### YOUR CODE HERE
+    action = "StartTransaction"
+    message_type = 2
+    ###
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
 
 display(df.transform(start_transaction_request_filter))
 
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_start_transaction_request_filter_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123"
+    },
+    {
+        "action": "StartTransaction",
+        "message_type": 3,
+        "charge_point_id": "123"
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 1
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_data = [ (x.action, x.message_type) for x in result.collect()]
+    expected_data = [("StartTransaction", 2)]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+    print("All tests pass! :)")
+    
+test_start_transaction_request_filter_unit(spark, start_transaction_request_filter)
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_start_transaction_request_filter_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    display(result)
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_action = [ x.action for x in result.select("action").distinct().collect()]
+    expected_action = ["StartTransaction"]
+    assert result_action == expected_action, f"Expected {expected_action}, but got {result_action}"
+    
+    result_message_type = [ x.message_type for x in result.select("message_type").distinct().collect()]
+    expected_message_type = [2]
+    assert result_message_type == expected_message_type, f"Expected {expected_message_type}, but got {result_message_type}"
+
+    print("All tests pass! :)")
+    
+test_start_transaction_request_filter_e2e(df.transform(start_transaction_request_filter), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Request Unpack JSON
+# MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- body: string (nullable = true)
+# MAGIC  |-- new_body: struct (nullable = true)
+# MAGIC  |    |-- connector_id: integer (nullable = true)
+# MAGIC  |    |-- id_tag: string (nullable = true)
+# MAGIC  |    |-- meter_start: integer (nullable = true)
+# MAGIC  |    |-- timestamp: string (nullable = true)
+# MAGIC  |    |-- reservation_id: integer (nullable = true)
+# MAGIC  ```
 
 # COMMAND ----------
 
 from pyspark.sql.functions import from_json, col
 
-def start_transaction_request_body_schema():
-    schema = StructType([
+def start_transaction_request_unpack_json(input_df: DataFrame):
+    body_schema = StructType([
+        StructField("connector_id", IntegerType(), True),
+        StructField("id_tag", StringType(), True),
+        StructField("meter_start", IntegerType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("reservation_id", IntegerType(), True),
+    ])
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json))
+
+# COMMAND ----------
+
+########## SOLUTION ###########
+
+from pyspark.sql.functions import from_json, col
+
+def start_transaction_request_unpack_json(input_df: DataFrame):
+    body_schema = StructType([
+        StructField("connector_id", IntegerType(), True),
+        StructField("id_tag", StringType(), True),
+        StructField("meter_start", IntegerType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("reservation_id", IntegerType(), True),
+    ])
+    ### YOUR CODE HERE
+    return input_df.withColumn("new_body",from_json(col("body"), body_schema))
+    ###
+    
+display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_start_transaction_request_unpack_json_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": json.dumps({
+            "connector_id": 1,
+            "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+            "meter_start": 0,
+            "timestamp": "2022-01-01T08:00:00+00:00",
+            "reservation_id": None
+        })
+    },
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": json.dumps({
+            "connector_id": 1,
+            "id_tag": "7f72c19c-5b36-400e-980d-7a16d30ca490",
+            "meter_start": 0,
+            "timestamp": "2022-01-01T09:00:00+00:00",
+            "reservation_id": None
+        })
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType(
+        [
+            StructField('action', StringType(), True), 
+            StructField('message_type', IntegerType(), True), 
+            StructField('charge_point_id', StringType(), True), 
+            StructField('body', StringType(), True), 
+            StructField('new_body', StructType([
+                         StructField('connector_id', IntegerType(), True), 
+                         StructField('id_tag', StringType(), True), 
+                         StructField('meter_start', IntegerType(), True), 
+                         StructField('timestamp', StringType(), True), 
+                         StructField('reservation_id', IntegerType(), True)
+            ]), True)
+        ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.timestamp for x in result.collect()]
+    expected_data = ['2022-01-01T08:00:00+00:00', '2022-01-01T09:00:00+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_start_transaction_request_unpack_json_unit(spark, start_transaction_request_unpack_json)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_start_transaction_request_unpack_json_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body', StructType([
+            StructField('connector_id', IntegerType(), True), 
+            StructField('id_tag', StringType(), True), 
+            StructField('meter_start', IntegerType(), True), 
+            StructField('timestamp', StringType(), True), 
+            StructField('reservation_id', IntegerType(), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.timestamp for x in result.sort(col("new_body.timestamp")).limit(3).collect()]
+    expected_data = ['2023-01-01T10:43:09.900215+00:00', '2023-01-01T11:20:31.296429+00:00', '2023-01-01T14:03:42.294160+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_start_transaction_request_unpack_json_e2e(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: StartTransaction Request Flatten
+# MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns!
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- connector_id: integer (nullable = true)
+# MAGIC  |-- id_tag: integer (nullable = true)
+# MAGIC  |-- meter_start: integer (nullable = true)
+# MAGIC  |-- timestamp: string (nullable = true)
+# MAGIC  |-- reservation_id: integer (nullable = true)
+# MAGIC  ```
+
+# COMMAND ----------
+
+def start_transaction_request_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten))
+
+# COMMAND ----------
+
+############ SOLUTION ##############
+
+def start_transaction_request_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
+    return input_df.\
+        withColumn("connector_id", input_df.new_body.connector_id).\
+        withColumn("id_tag", input_df.new_body.connector_id).\
+        withColumn("meter_start", input_df.new_body.meter_start).\
+        withColumn("timestamp", input_df.new_body.timestamp).\
+        withColumn("reservation_id", input_df.new_body.reservation_id).\
+        drop("new_body").\
+        drop("body")
+    ###
+
+display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+def test_start_transaction_request_flatten_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": json.dumps({
+            "connector_id": 1,
+            "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+            "meter_start": 0,
+            "timestamp": "2022-01-01T08:00:00+00:00",
+            "reservation_id": None
+        })
+    },
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": json.dumps({
+            "connector_id": 1,
+            "id_tag": "7f72c19c-5b36-400e-980d-7a16d30ca490",
+            "meter_start": 0,
+            "timestamp": "2022-01-01T09:00:00+00:00",
+            "reservation_id": None
+        })
+    },
+    ])
+
+    body_schema = StructType([
         StructField("connector_id", IntegerType(), True),
         StructField("id_tag", StringType(), True),
         StructField("meter_start", IntegerType(), True),
@@ -105,31 +468,90 @@ def start_transaction_request_body_schema():
         StructField("reservation_id", IntegerType(), True),
     ])
     
-    return schema
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    ).withColumn("new_body", from_json(col("body"), body_schema))
+    
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
 
-def start_transaction_request_unpack_json(input_df: DataFrame):
-    return input_df.withColumn("new_body",from_json(col("body"), start_transaction_request_body_schema()))
+    result_count = result.count()
+    expected_count = 2
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('action', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('connector_id', IntegerType(), True), 
+        StructField('id_tag', IntegerType(), True), 
+        StructField('meter_start', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('reservation_id', IntegerType(), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.timestamp for x in result.collect()]
+    expected_data = ['2022-01-01T08:00:00+00:00', '2022-01-01T09:00:00+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
 
-display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json))
+
+    print("All tests pass! :)")
+    
+test_start_transaction_request_flatten_unit(spark, start_transaction_request_flatten)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: StartTransaction Request Flatten
+# MAGIC #### E2E Test
 
 # COMMAND ----------
 
-def start_transaction_request_flatten(input_df: DataFrame):
-    return input_df.\
-        withColumn("connector_id", input_df.new_body.connector_id).\
-        withColumn("id_tag", input_df.new_body.connector_id).\
-        withColumn("meter_start", input_df.new_body.meter_start).\
-        withColumn("timestamp", input_df.new_body.timestamp).\
-        withColumn("reservation_id", input_df.new_body.reservation_id).\
-        drop("new_body")
+from typing import Callable
+import pandas as pd
+import json
+
+def test_start_transaction_request_flatten_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True),
+        StructField('connector_id', IntegerType(), True), 
+        StructField('id_tag', IntegerType(), True), 
+        StructField('meter_start', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('reservation_id', IntegerType(), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.timestamp for x in result.sort(col("timestamp")).limit(3).collect()]
+    expected_data = ['2023-01-01T10:43:09.900215+00:00', '2023-01-01T11:20:31.296429+00:00', '2023-01-01T14:03:42.294160+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
 
 
-display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten))
+    print("All tests pass! :)")
+    
+test_start_transaction_request_flatten_e2e(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten), spark, display)
 
 # COMMAND ----------
 
@@ -140,57 +562,484 @@ display(df.transform(start_transaction_request_filter).transform(start_transacti
 
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Response Filter
+# MAGIC In this exercise, filter for the `StartTransaction` action and the "Response" (`3`) message_type.
 
 # COMMAND ----------
 
 def start_transaction_response_filter(input_df: DataFrame):
-    return input_df.filter((input_df.action == "StartTransaction") & (input_df.message_type == 3))
+    ### YOUR CODE HERE
+    action = None
+    message_type = None
+    ###
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
+
+display(df.transform(start_transaction_response_filter))
+
+# COMMAND ----------
+
+############## SOLUTION ################
+
+def start_transaction_response_filter(input_df: DataFrame):
+    ### YOUR CODE HERE
+    action = "StartTransaction"
+    message_type = 3
+    ###
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
 
 display(df.transform(start_transaction_response_filter))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: StartTransaction Response Unpack JSON
+# MAGIC #### Unit Test
 
 # COMMAND ----------
 
-def start_transaction_response_body_schema():
+from typing import Callable
+import pandas as pd
+
+def test_start_transaction_response_filter_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123"
+    },
+    {
+        "action": "StartTransaction",
+        "message_type": 3,
+        "charge_point_id": "123"
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 1
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_data = [ (x.action, x.message_type) for x in result.collect()]
+    expected_data = [("StartTransaction", 3)]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+    print("All tests pass! :)")
+    
+test_start_transaction_response_filter_unit(spark, start_transaction_response_filter)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_start_transaction_response_filter_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    display(result)
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_action = [ x.action for x in result.select("action").distinct().collect()]
+    expected_action = ["StartTransaction"]
+    assert result_action == expected_action, f"Expected {expected_action}, but got {result_action}"
+    
+    result_message_type = [ x.message_type for x in result.select("message_type").distinct().collect()]
+    expected_message_type = [3]
+    assert result_message_type == expected_message_type, f"Expected {expected_message_type}, but got {result_message_type}"
+
+    print("All tests pass! :)")
+    
+test_start_transaction_response_filter_e2e(df.transform(start_transaction_response_filter), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: StartTransaction Response Unpack JSON
+# MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- body: string (nullable = true)
+# MAGIC  |-- new_body: struct (nullable = true)
+# MAGIC  |    |-- transaction_id: integer (nullable = true)
+# MAGIC  |    |-- id_tag_info: struct (nullable = true)
+# MAGIC  |    |    |-- status: string (nullable = true)
+# MAGIC  |    |    |-- parent_id_tag: string (nullable = true)
+# MAGIC  |    |    |-- expiry_date: string (nullable = true)
+# MAGIC ```
+
+# COMMAND ----------
+
+def start_transaction_response_unpack_json(input_df: DataFrame):
     id_tag_info_schema = StructType([
         StructField("status", StringType(), True),
         StructField("parent_id_tag", StringType(), True),
         StructField("expiry_date", StringType(), True),
     ])
 
-    schema = StructType([
+    body_schema = StructType([
         StructField("transaction_id", IntegerType(), True),
         StructField("id_tag_info", id_tag_info_schema, True)
     ])
-
-    return schema
+    ### YOUR CODE HERE
+    return input_df
+    ###
     
+display(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json))
+
+# COMMAND ----------
+
+########### SOLUTION ###########
 
 def start_transaction_response_unpack_json(input_df: DataFrame):
-    return input_df.withColumn("new_body",from_json(col("body"), start_transaction_response_body_schema()))
+    id_tag_info_schema = StructType([
+        StructField("status", StringType(), True),
+        StructField("parent_id_tag", StringType(), True),
+        StructField("expiry_date", StringType(), True),
+    ])
 
+    body_schema = StructType([
+        StructField("transaction_id", IntegerType(), True),
+        StructField("id_tag_info", id_tag_info_schema, True)
+    ])
+    ### YOUR CODE HERE
+    return input_df.withColumn("new_body",from_json(col("body"), body_schema))
+    ###
+    
 display(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json))
 
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_start_transaction_response_unpack_json_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+        {
+            "charge_point_id": "123",
+            "message_id": "456",
+            "body": json.dumps({
+                "transaction_id": 1,
+                "id_tag_info": {
+                    "status": "Accepted",
+                    "parent_id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+                    "expiry_date": None
+                }
+            })
+        },
+    ])
+    
+    body_id_tag_info_schema = StructType([
+        StructField("status", StringType(), True),
+        StructField("parent_id_tag", StringType(), True),
+        StructField("expiry_date", StringType(), True),
+    ])
+
+    body_schema = StructType([
+        StructField("transaction_id", IntegerType(), True),
+        StructField("id_tag_info", body_id_tag_info_schema, True)
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("charge_point_id", StringType()),
+            StructField("message_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    ).withColumn("new_body",from_json(col("body"), body_schema))
+
+    
+    result = input_df.transform(f)
+
+    print("Transformed DF:")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 1
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('charge_point_id', StringType(), True), 
+        StructField('message_id', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body', StructType([
+            StructField('transaction_id', IntegerType(), True), 
+            StructField('id_tag_info', StructType([
+                StructField('status', StringType(), True), 
+                StructField('parent_id_tag', StringType(), True), 
+                StructField('expiry_date', StringType(), True)
+            ]), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.id_tag_info.parent_id_tag for x in result.collect()]
+    expected_data = ['ea068c10-1bfb-4128-ab88-de565bd5f02f']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_start_transaction_response_unpack_json_unit(spark, start_transaction_response_unpack_json)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_start_transaction_response_unpack_json_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body', StructType([
+            StructField('transaction_id', IntegerType(), True), 
+            StructField('id_tag_info', StructType([
+                StructField('status', StringType(), True), 
+                StructField('parent_id_tag', StringType(), True), 
+                StructField('expiry_date', StringType(), True)
+            ]), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.id_tag_info.parent_id_tag for x in result.sort(col("message_id")).limit(3).collect()]
+    expected_data = ['0c806549-afb1-4cb4-8b36-77f088e0f273', 'b7bc3b31-5b0d-41b5-b0bf-762ac9b785ed', '9495b2ac-d3ef-4330-a098-f1661ab9303e']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_start_transaction_response_unpack_json_e2e(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Response Flatten
+# MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns!
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- id_tag_info_status: string (nullable = true)
+# MAGIC  |-- id_tag_info_parent_id_tag: string (nullable = true)
+# MAGIC  |-- id_tag_info_expiry_date: string (nullable = true)
+# MAGIC ```
 
 # COMMAND ----------
 
 def start_transaction_response_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+display(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json).transform(start_transaction_response_flatten))
+
+# COMMAND ----------
+
+########### SOLUTION ###########
+
+def start_transaction_response_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
     return input_df.\
         withColumn("transaction_id", input_df.new_body.transaction_id).\
         withColumn("id_tag_info_status", input_df.new_body.id_tag_info.status).\
         withColumn("id_tag_info_parent_id_tag", input_df.new_body.id_tag_info.parent_id_tag).\
         withColumn("id_tag_info_expiry_date", input_df.new_body.id_tag_info.expiry_date).\
-        drop("new_body")
-  
+        drop("new_body").\
+        drop("body")
+    ###
+
 display(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json).transform(start_transaction_response_flatten))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+def test_start_transaction_response_flatten_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+        {
+            "action": "StartTransaction",
+            "message_type": 3,
+            "charge_point_id": "123",
+            "body": json.dumps({
+                "transaction_id": 1,
+                "id_tag_info": {
+                    "status": "Accepted",
+                    "parent_id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+                    "expiry_date": None
+                }
+            })
+        },
+        {
+            "action": "StartTransaction",
+            "message_type": 3,
+            "charge_point_id": "123",
+            "body": json.dumps({
+                "transaction_id": 2,
+                "id_tag_info": {
+                    "status": "Accepted",
+                    "parent_id_tag": "74924177-d936-4898-8943-1c1a512d7f4c",
+                    "expiry_date": None
+                }
+            })
+        },
+    ])
+
+    body_id_tag_info_schema = StructType([
+        StructField("status", StringType(), True),
+        StructField("parent_id_tag", StringType(), True),
+        StructField("expiry_date", StringType(), True),
+    ])
+
+    body_schema = StructType([
+        StructField("transaction_id", IntegerType(), True),
+        StructField("id_tag_info", body_id_tag_info_schema, True)
+    ])
+    
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    ).withColumn("new_body", from_json(col("body"), body_schema))
+    
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('action', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('id_tag_info_status', StringType(), True), 
+        StructField('id_tag_info_parent_id_tag', StringType(), True), 
+        StructField('id_tag_info_expiry_date', StringType(), True)
+    ])
+
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.transaction_id for x in result.collect()]
+    expected_data = [1, 2]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_start_transaction_response_flatten_unit(spark, start_transaction_response_flatten)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_start_transaction_response_flatten_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('id_tag_info_status', StringType(), True), 
+        StructField('id_tag_info_parent_id_tag', StringType(), True), 
+        StructField('id_tag_info_expiry_date', StringType(), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.transaction_id for x in result.sort(col("message_id")).limit(3).collect()]
+    expected_data = [1652, 318, 1677]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_start_transaction_response_flatten_e2e(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json).transform(start_transaction_response_flatten), spark, display)
 
 # COMMAND ----------
 
@@ -201,25 +1050,144 @@ display(df.transform(start_transaction_response_filter).transform(start_transact
 
 # MAGIC %md
 # MAGIC ### EXERCISE: StopTransaction Request Filter
+# MAGIC In this exercise, filter for the `StopTransaction` action and the "Request" (`2`) message_type.
 
 # COMMAND ----------
 
 def stop_transaction_request_filter(input_df: DataFrame):
-    return input_df.filter((input_df.action == "StopTransaction") & (input_df.message_type == 2))
+    ### YOUR CODE HERE
+    action = None
+    message_type = None
+    ###
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
+
+display(df.transform(stop_transaction_request_filter))
+
+# COMMAND ----------
+
+############ SOLUTION #############
+
+def stop_transaction_request_filter(input_df: DataFrame):
+    ### YOUR CODE HERE
+    action = "StopTransaction"
+    message_type = 2
+    ###
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
 
 display(df.transform(stop_transaction_request_filter))
 
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_stop_transaction_request_filter_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "StopTransaction",
+        "message_type": 2,
+        "charge_point_id": "123"
+    },
+    {
+        "action": "StopTransaction",
+        "message_type": 3,
+        "charge_point_id": "123"
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 1
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_data = [ (x.action, x.message_type) for x in result.collect()]
+    expected_data = [("StopTransaction", 2)]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+    print("All tests pass! :)")
+    
+test_stop_transaction_request_filter_unit(spark, stop_transaction_request_filter)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_stop_transaction_request_filter_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    display(result)
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_action = [ x.action for x in result.select("action").distinct().collect()]
+    expected_action = ["StopTransaction"]
+    assert result_action == expected_action, f"Expected {expected_action}, but got {result_action}"
+    
+    result_message_type = [ x.message_type for x in result.select("message_type").distinct().collect()]
+    expected_message_type = [2]
+    assert result_message_type == expected_message_type, f"Expected {expected_message_type}, but got {result_message_type}"
+
+    print("All tests pass! :)")
+    
+test_stop_transaction_request_filter_e2e(df.transform(stop_transaction_request_filter), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### EXERCISE: StopTransaction Request Unpack JSON
+# MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- body: string (nullable = true)
+# MAGIC  |-- new_body: struct (nullable = true)
+# MAGIC  |    |-- meter_stop: integer (nullable = true)
+# MAGIC  |    |-- timestamp: string (nullable = true)
+# MAGIC  |    |-- transaction_id: integer (nullable = true)
+# MAGIC  |    |-- reason: string (nullable = true)
+# MAGIC  |    |-- id_tag: string (nullable = true)
+# MAGIC  |    |-- transaction_data: array (nullable = true)
+# MAGIC  |    |    |-- element: string (containsNull = true)
+# MAGIC ```
 
 # COMMAND ----------
 
 from pyspark.sql.types import ArrayType
-
-def stop_transaction_body_schema():
-    return StructType([
+    
+def stop_transaction_request_unpack_json(input_df: DataFrame):
+    body_schema = StructType([
         StructField("meter_stop", IntegerType(), True),
         StructField("timestamp", StringType(), True),
         StructField("transaction_id", IntegerType(), True),
@@ -227,9 +1195,31 @@ def stop_transaction_body_schema():
         StructField("id_tag", StringType(), True),
         StructField("transaction_data", ArrayType(StringType()), True)
     ])
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+
+display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json))
+
+# COMMAND ----------
+
+############### SOLUTION ################
+
+from pyspark.sql.types import ArrayType
     
 def stop_transaction_request_unpack_json(input_df: DataFrame):
-    return input_df.withColumn("new_body",from_json(col("body"), stop_transaction_body_schema()))
+    body_schema = StructType([
+        StructField("meter_stop", IntegerType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("transaction_id", IntegerType(), True),
+        StructField("reason", StringType(), True),
+        StructField("id_tag", StringType(), True),
+        StructField("transaction_data", ArrayType(StringType()), True)
+    ])
+    ### YOUR CODE HERE
+    return input_df.withColumn("new_body",from_json(col("body"), body_schema))
+    ###
 
 
 display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json))
@@ -237,11 +1227,175 @@ display(df.transform(stop_transaction_request_filter).transform(stop_transaction
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_stop_transaction_request_unpack_json_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "StopTransaction",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": json.dumps({
+            "meter_stop": 2780,
+            "timestamp": "2022-01-01T08:20:00+00:00",
+            "transaction_id": 1,
+            "reason": None,
+            "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+            "transaction_data": None
+        }),
+    },
+    {
+        "action": "StartTransaction",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": json.dumps({
+            "meter_stop": 5000,
+            "timestamp": "2022-01-01T09:20:00+00:00",
+            "transaction_id": 1,
+            "reason": None,
+            "id_tag": "25b72fa9-85fd-4a75-acbe-5a15fc7430a8",
+            "transaction_data": None
+        }),
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('action', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body', StructType([
+            StructField('meter_stop', IntegerType(), True), 
+            StructField('timestamp', StringType(), True), 
+            StructField('transaction_id', IntegerType(), True), 
+            StructField('reason', StringType(), True), 
+            StructField('id_tag', StringType(), True), 
+            StructField('transaction_data', ArrayType(StringType(), True), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.timestamp for x in result.collect()]
+    expected_data = ['2022-01-01T08:20:00+00:00', '2022-01-01T09:20:00+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_stop_transaction_request_unpack_json_unit(spark, stop_transaction_request_unpack_json)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_stop_transaction_request_unpack_json_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body', StructType([
+            StructField('meter_stop', IntegerType(), True), 
+            StructField('timestamp', StringType(), True), 
+            StructField('transaction_id', IntegerType(), True), 
+            StructField('reason', StringType(), True), 
+            StructField('id_tag', StringType(), True), 
+            StructField('transaction_data', ArrayType(StringType(), True), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.timestamp for x in result.sort(col("new_body.timestamp")).limit(3).collect()]
+    expected_data = ['2023-01-01T17:56:55.669396+00:00', '2023-01-01T18:31:34.833396+00:00', '2023-01-01T19:10:01.568021+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_stop_transaction_request_unpack_json_e2e(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### EXERCISE: StopTransaction Request Flatten
+# MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns!
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- meter_stop: integer (nullable = true)
+# MAGIC  |-- timestamp: string (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- reason: string (nullable = true)
+# MAGIC  |-- id_tag: string (nullable = true)
+# MAGIC  |-- transaction_data: array (nullable = true)
+# MAGIC  |    |-- element: string (containsNull = true)
+# MAGIC ```
 
 # COMMAND ----------
 
 def stop_transaction_request_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten))
+
+# COMMAND ----------
+
+########### SOLUTION ############
+
+def stop_transaction_request_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
     return input_df.\
         withColumn("meter_stop", input_df.new_body.meter_stop).\
         withColumn("timestamp", input_df.new_body.timestamp).\
@@ -249,9 +1403,144 @@ def stop_transaction_request_flatten(input_df: DataFrame):
         withColumn("reason", input_df.new_body.reason).\
         withColumn("id_tag", input_df.new_body.id_tag).\
         withColumn("transaction_data", input_df.new_body.transaction_data).\
-        drop("new_body")
+        drop("new_body").\
+        drop("body")
+    ###
 
 display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+def test_stop_transaction_request_flatten_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+        {
+            "action": "StopTransaction",
+            "message_type": 2,
+            "charge_point_id": "123",
+            "body": json.dumps({
+                "meter_stop": 2780,
+                "timestamp": "2022-01-01T08:20:00+00:00",
+                "transaction_id": 1,
+                "reason": None,
+                "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+                "transaction_data": None
+            }),
+        },
+        {
+            "action": "StartTransaction",
+            "message_type": 2,
+            "charge_point_id": "123",
+            "body": json.dumps({
+                "meter_stop": 5000,
+                "timestamp": "2022-01-01T09:20:00+00:00",
+                "transaction_id": 1,
+                "reason": None,
+                "id_tag": "25b72fa9-85fd-4a75-acbe-5a15fc7430a8",
+                "transaction_data": None
+            }),
+        },
+    ])
+
+    body_schema = StructType([
+        StructField('meter_stop', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('reason', StringType(), True), 
+        StructField('id_tag', StringType(), True), 
+        StructField('transaction_data', ArrayType(StringType(), True), True)
+    ])
+    
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    ).withColumn("new_body", from_json(col("body"), body_schema))
+    
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('action', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('meter_stop', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('reason', StringType(), True), 
+        StructField('id_tag', StringType(), True), 
+        StructField('transaction_data', ArrayType(StringType(), True), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.timestamp for x in result.collect()]
+    expected_data = ['2022-01-01T08:20:00+00:00', '2022-01-01T09:20:00+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_stop_transaction_request_flatten_unit(spark, stop_transaction_request_flatten)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_stop_transaction_request_flatten_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('meter_stop', IntegerType(), True), 
+        StructField('timestamp', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('reason', StringType(), True), 
+        StructField('id_tag', StringType(), True), 
+        StructField('transaction_data', ArrayType(StringType(), True), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.timestamp for x in result.sort(col("timestamp")).limit(3).collect()]
+    expected_data = ['2023-01-01T17:56:55.669396+00:00', '2023-01-01T18:31:34.833396+00:00', '2023-01-01T19:10:01.568021+00:00']
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_stop_transaction_request_flatten_e2e(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten), spark, display)
 
 # COMMAND ----------
 
@@ -262,18 +1551,143 @@ display(df.transform(stop_transaction_request_filter).transform(stop_transaction
 
 # MAGIC %md
 # MAGIC ### EXERCISE: MeterValues Request Filter
+# MAGIC In this exercise, filter for the `MeterValues` action and the "Request" (`2`) message_type.
 
 # COMMAND ----------
 
 def meter_values_request_filter(input_df: DataFrame):
+    ### YOUR CODE HERE
+    action = None
+    message_type = None
+    ###
     return input_df.filter((input_df.action == "MeterValues") & (input_df.message_type == 2))
 
 display(df.transform(meter_values_request_filter))
 
 # COMMAND ----------
 
+######### SOLUTION ###########
+
+def meter_values_request_filter(input_df: DataFrame):
+    ### YOUR CODE HERE
+    action = "MeterValues"
+    message_type = 2
+    ###
+    return input_df.filter((input_df.action == "MeterValues") & (input_df.message_type == 2))
+
+display(df.transform(meter_values_request_filter))
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_meter_values_request_filter_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "MeterValues",
+        "message_type": 2,
+        "charge_point_id": "123"
+    },
+    {
+        "action": "MeterValues",
+        "message_type": 3,
+        "charge_point_id": "123"
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 1
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_data = [ (x.action, x.message_type) for x in result.collect()]
+    expected_data = [("MeterValues", 2)]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+    print("All tests pass! :)")
+    
+test_meter_values_request_filter_unit(spark, meter_values_request_filter)
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+
+def test_meter_values_request_filter_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    display(result)
+
+    result_count = result.count()
+    expected_count = 218471
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_action = [ x.action for x in result.select("action").distinct().collect()]
+    expected_action = ["MeterValues"]
+    assert result_action == expected_action, f"Expected {expected_action}, but got {result_action}"
+    
+    result_message_type = [ x.message_type for x in result.select("message_type").distinct().collect()]
+    expected_message_type = [2]
+    assert result_message_type == expected_message_type, f"Expected {expected_message_type}, but got {result_message_type}"
+
+    print("All tests pass! :)")
+    
+test_meter_values_request_filter_e2e(df.transform(meter_values_request_filter), spark, display)
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ### EXERCISE: MeterValues Request Unpack JSON
+# MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- body: string (nullable = true)
+# MAGIC  |-- new_body: struct (nullable = true)
+# MAGIC  |    |-- connector_id: integer (nullable = true)
+# MAGIC  |    |-- transaction_id: integer (nullable = true)
+# MAGIC  |    |-- meter_value: array (nullable = true)
+# MAGIC  |    |    |-- element: struct (containsNull = true)
+# MAGIC  |    |    |    |-- timestamp: string (nullable = true)
+# MAGIC  |    |    |    |-- sampled_value: array (nullable = true)
+# MAGIC  |    |    |    |    |-- element: struct (containsNull = true)
+# MAGIC  |    |    |    |    |    |-- value: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- context: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- format: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- measurand: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- phase: string (nullable = true)
+# MAGIC  |    |    |    |    |    |-- unit: string (nullable = true)
+# MAGIC ```
 
 # COMMAND ----------
 
@@ -297,15 +1711,190 @@ def meter_values_request_unpack_json(input_df: DataFrame):
         StructField("transaction_id", IntegerType()),
         StructField("meter_value", ArrayType(meter_value_schema)),
     ])
-    
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json))
+
+# COMMAND ----------
+
+############## SOLUTION ##############
+
+def meter_values_request_unpack_json(input_df: DataFrame):
+    sampled_value_schema = StructType([
+        StructField("value", StringType()),
+        StructField("context", StringType()),
+        StructField("format", StringType()),
+        StructField("measurand", StringType()),
+        StructField("phase", StringType()),
+        StructField("unit", StringType()),
+    ])
+
+    meter_value_schema = StructType([
+        StructField("timestamp", StringType()),
+        StructField("sampled_value", ArrayType(sampled_value_schema)),
+    ])
+
+    body_schema = StructType([
+        StructField("connector_id", IntegerType()),
+        StructField("transaction_id", IntegerType()),
+        StructField("meter_value", ArrayType(meter_value_schema)),
+    ])
+    ### YOUR CODE HERE
     return input_df.withColumn("new_body", from_json(col("body"), body_schema))
+    ###
 
 display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json))
 
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_meter_values_request_unpack_json_unit(spark, f: Callable):
+    input_pandas = pd.DataFrame([
+    {
+        "action": "MeterValues",
+        "message_type": 2,
+        "charge_point_id": "123",
+        "body": '{"connector_id": 1, "meter_value": [{"timestamp": "2022-10-02T15:30:17.000345+00:00", "sampled_value": [{"value": "0.00", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L1-N", "location": "Outlet", "unit": "V"}, {"value": "13.17", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L1", "location": "Outlet", "unit": "A"}, {"value": "3663.49", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L1", "location": "Outlet", "unit": "W"}, {"value": "238.65", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L2-N", "location": "Outlet", "unit": "V"}, {"value": "14.28", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L2", "location": "Outlet", "unit": "A"}, {"value": "3086.46", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L2", "location": "Outlet", "unit": "W"}, {"value": "215.21", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L3-N", "location": "Outlet", "unit": "V"}, {"value": "14.63", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L3", "location": "Outlet", "unit": "A"}, {"value": "4014.47", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L3", "location": "Outlet", "unit": "W"}, {"value": "254.65", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": null, "location": "Outlet", "unit": "Wh"}, {"value": "11.68", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L1-N", "location": "Outlet", "unit": "V"}, {"value": "3340.61", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L1", "location": "Outlet", "unit": "A"}, {"value": "7719.95", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L1", "location": "Outlet", "unit": "W"}, {"value": "0.00", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L2-N", "location": "Outlet", "unit": "V"}, {"value": "3.72", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L2", "location": "Outlet", "unit": "A"}, {"value": "783.17", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L2", "location": "Outlet", "unit": "W"}, {"value": "242.41", "context": "Sample.Periodic", "format": "Raw", "measurand": "Voltage", "phase": "L3-N", "location": "Outlet", "unit": "V"}, {"value": "3.46", "context": "Sample.Periodic", "format": "Raw", "measurand": "Current.Import", "phase": "L3", "location": "Outlet", "unit": "A"}, {"value": "931.52", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": "L3", "location": "Outlet", "unit": "W"}, {"value": "1330", "context": "Sample.Periodic", "format": "Raw", "measurand": "Power.Active.Import", "phase": null, "location": "Outlet", "unit": "W"},{"value": "7.26", "context": "Sample.Periodic", "format": "Raw", "measurand": "Energy.Active.Import.Register", "phase": null, "location": "Outlet", "unit": "Wh"}]}], "transaction_id": 1}'
+    },
+    ])
+
+    input_df = spark.createDataFrame(
+        input_pandas,
+        StructType([
+            StructField("action", StringType()),
+            StructField("message_type", IntegerType()),
+            StructField("charge_point_id", StringType()),
+            StructField("body", StringType()),
+        ])
+    )
+
+    result = input_df.transform(f)
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 1
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('action', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body',StructType([
+            StructField("connector_id", IntegerType(), True),
+            StructField("transaction_id", IntegerType(), True),
+            StructField("meter_value", ArrayType(StructType([
+                StructField("timestamp", StringType(), True),
+                StructField("sampled_value", ArrayType(StructType([
+                    StructField("value", StringType(), True),
+                    StructField("context", StringType(), True),
+                    StructField("format", StringType(), True),
+                    StructField("measurand", StringType(), True),
+                    StructField("phase", StringType(), True),
+                    StructField("unit", StringType(), True)
+                ]), True), True)
+            ]), True), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.transaction_id for x in result.collect()]
+    expected_data = [1]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_meter_values_request_unpack_json_unit(spark, meter_values_request_unpack_json)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+
+def test_meter_values_request_unpack_json_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 218471
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+    
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('message_id', StringType(), True), 
+        StructField('message_type', IntegerType(), True), 
+        StructField('charge_point_id', StringType(), True), 
+        StructField('action', StringType(), True), 
+        StructField('write_timestamp', StringType(), True), 
+        StructField('body', StringType(), True), 
+        StructField('new_body',StructType([
+            StructField("connector_id", IntegerType(), True),
+            StructField("transaction_id", IntegerType(), True),
+            StructField("meter_value", ArrayType(StructType([
+                StructField("timestamp", StringType(), True),
+                StructField("sampled_value", ArrayType(StructType([
+                    StructField("value", StringType(), True),
+                    StructField("context", StringType(), True),
+                    StructField("format", StringType(), True),
+                    StructField("measurand", StringType(), True),
+                    StructField("phase", StringType(), True),
+                    StructField("unit", StringType(), True)
+                ]), True), True)
+            ]), True), True)
+        ]), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+    
+    result_data = [ x.new_body.transaction_id for x in result.sort(col("message_id")).limit(3).collect()]
+    expected_data = [2562, 2562, 2562]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+
+    print("All tests pass! :)")
+    
+test_meter_values_request_unpack_json_e2e(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### EXERCISE: MeterValues Request Flatten
+# MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns! You might need to use [explode](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.explode.html?highlight=explode#pyspark.sql.functions.explode) for certain nested structures.
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- timestamp: timestamp (nullable = true)
+# MAGIC  |-- measurand: string (nullable = true)
+# MAGIC  |-- phase: string (nullable = true)
+# MAGIC  |-- value: double (nullable = true)
+# MAGIC ```
 
 # COMMAND ----------
 
@@ -314,6 +1903,22 @@ from pyspark.sql.types import DoubleType
 
 
 def meter_values_request_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
+    return input_df
+    ###
+
+display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json).transform(meter_values_request_flatten))
+
+# COMMAND ----------
+
+############ SOLUTION #############
+
+from pyspark.sql.functions import explode, to_timestamp, round
+from pyspark.sql.types import DoubleType
+
+
+def meter_values_request_flatten(input_df: DataFrame):
+    ### YOUR CODE HERE
     return input_df. \
         select("*", explode("new_body.meter_value").alias("meter_value")). \
         select("*", explode("meter_value.sampled_value").alias("sampled_value")). \
@@ -322,8 +1927,19 @@ def meter_values_request_flatten(input_df: DataFrame):
         withColumn("phase", col("sampled_value.phase")).\
         withColumn("value", round(col("sampled_value.value").cast(DoubleType()),2)).\
         select("message_id", "message_type", "charge_point_id", "action", "write_timestamp", col("new_body.transaction_id").alias("transaction_id"), "timestamp", "measurand", "phase", "value")
+    ###
 
 display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json).transform(meter_values_request_flatten))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
 
 # COMMAND ----------
 
@@ -381,6 +1997,10 @@ df.\
 
 # COMMAND ----------
 
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StopTransactionRequest")))
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ### EXERCISE: Write MeterValues Request to Parquet
 # MAGIC TODO: Why does this take 32.22 seconds??
@@ -397,7 +2017,7 @@ df.\
 
 # COMMAND ----------
 
-dbutils.fs.ls(f"{out_dir}/MeterValuesRequest")
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/MeterValuesRequest")))
 
 # COMMAND ----------
 
