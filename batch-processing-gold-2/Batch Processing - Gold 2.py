@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Batch Processing - Gold 2
+# MAGIC # Batch Processing - Gold
 # MAGIC 
 # MAGIC Remember our domain question, **What is the final charge time and final charge dispense for every completed transaction**? It was the exercise which required several joins and window queries. :)  We're here to do it again (the lightweight version) but with the help of the work we did in the Silver Tier. 
 # MAGIC 
@@ -28,7 +28,7 @@
 
 # COMMAND ----------
 
-exercise_name = "batch_processing_gold_1"
+exercise_name = "batch_processing_gold"
 
 # COMMAND ----------
 
@@ -83,23 +83,151 @@ display(meter_values_request_df)
 
 # COMMAND ----------
 
-# Match StartTransaction Requests and Responses
+# MAGIC %md
+# MAGIC ### EXERCISE: Match StartTransaction Requests and Responses
+
+# COMMAND ----------
+
+########## SOLUTION ##########
 def match_start_transaction_requests_with_responses(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
     return input_df.\
         join(join_df, input_df.message_id == join_df.message_id, "left").\
         select(
             input_df.charge_point_id.alias("charge_point_id"), 
-            join_df.transaction_id.alias("transaction_id"), 
-            input_df.meter_start.alias("meter_start"), 
-            input_df.timestamp.alias("start_timestamp")
+            input_df.transaction_id.alias("transaction_id"), 
+            join_df.meter_start.alias("meter_start"), 
+            join_df.timestamp.alias("start_timestamp")
         )
     ###
-    
-display(start_transaction_request_df.transform(match_start_transaction_requests_with_responses, start_transaction_response_df))
+    start_transaction_response_df
+display(start_transaction_response_df.transform(match_start_transaction_requests_with_responses, start_transaction_request_df))
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from typing import Callable
+import pandas as pd
+import json
+from pyspark.sql.functions import from_json, col
+
+def test_match_start_transaction_requests_with_responses_unit(spark, f: Callable):
+    input_start_transaction_response_pandas = pd.DataFrame([
+        {
+            "charge_point_id": "123",
+            "message_id": "456",
+            "transaction_id": 1,
+            "id_tag_info_status": "Accepted",
+            "id_tag_info_parent_id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+            "id_tag_info_expiry_date": None
+        }
+    ])
+
+    input_start_transaction_response_df = spark.createDataFrame(
+        input_start_transaction_response_pandas,
+        StructType([
+            StructField("charge_point_id", StringType()),
+            StructField("message_id", StringType()),
+            StructField("transaction_id", IntegerType()),
+            StructField("id_tag_info_status", StringType(), True),
+            StructField("id_tag_info_parent_id_tag", StringType(), True),
+            StructField("id_tag_info_expiry_date", StringType(), True),
+        ])
+    )
+
+    input_start_transaction_request_pandas = pd.DataFrame([
+        {
+            "charge_point_id": "123",
+            "message_id": "456",
+            "connector_id": 1,
+            "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+            "meter_start": 0,
+            "timestamp": "2022-01-01T08:00:00+00:00",
+            "reservation_id": None
+        },
+    ])
+
+    input_start_transaction_request_df = spark.createDataFrame(
+        input_start_transaction_request_pandas,
+        StructType([
+            StructField("charge_point_id", StringType()),
+            StructField("message_id", StringType()),
+            StructField("connector_id", IntegerType(), True),
+            StructField("id_tag", StringType(), True),
+            StructField("meter_start", IntegerType(), True),
+            StructField("timestamp", StringType(), True),
+            StructField("reservation_id", IntegerType(), True),
+        ])
+    )
+
+    result = input_start_transaction_response_df.transform(f, input_start_transaction_request_df)
+
+    print("Transformed DF:")
+    result.show()
+
+    result_count = result.count()
+    assert result_count == 1
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('charge_point_id', StringType(), True),
+        StructField('transaction_id', IntegerType(), True),
+        StructField('meter_start', IntegerType(), True),
+        StructField('start_timestamp', StringType(), True),
+    ])
+    assert result_schema == expected_schema, f"expected {expected_schema}, but got {result_schema}"
+
+    print("All tests pass! :)")
+    
+test_match_start_transaction_requests_with_responses_unit(spark, match_start_transaction_requests_with_responses)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+def test_match_start_transaction_requests_with_responses_e2e(input_df, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF")
+    result.show()
+
+    result_count = result.count()
+    expected_count = 2599
+    assert result_count == expected_count, f"Expected {expected_count}, but got {result_count}"
+
+    result_schema = result.schema
+    expected_schema = StructType([
+        StructField('charge_point_id', StringType(), True), 
+        StructField('transaction_id', IntegerType(), True), 
+        StructField('meter_start', IntegerType(), True), 
+        StructField('start_timestamp', StringType(), True)
+    ])
+    assert result_schema == expected_schema, f"Expected {expected_schema}, but got {result_schema}"
+
+    result_data = [x.transaction_id for x in result.sort(col("transaction_id")).limit(3).collect()]
+    expected_data = [1, 2, 3]
+    assert result_data == expected_data, f"Expected {expected_data}, but got {result_data}"
+
+    print("All tests pass! :)")
+
+test_match_start_transaction_requests_with_responses_e2e(start_transaction_response_df.transform(match_start_transaction_requests_with_responses, start_transaction_request_df), spark, display)
+
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Join Stop Transaction Requests and StartTransaction Responses
+
+# COMMAND ----------
+
+############## SOLUTION ##############
 # Join Stop Transaction Requests and StartTransaction Responses, matching on transaction_id (left join)
 def join_with_start_transaction_responses(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
         ### YOUR CODE HERE
@@ -119,10 +247,141 @@ def join_with_start_transaction_responses(input_df: DataFrame, join_df: DataFram
 display(stop_transaction_request_df.\
     transform(
         join_with_start_transaction_responses, 
-        start_transaction_request_df.\
-            transform(match_start_transaction_requests_with_responses, start_transaction_response_df)
+        start_transaction_response_df.\
+            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
     )
 )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from pyspark.sql import Row
+from typing import Any
+
+def test_join_with_start_transaction_responses_unit(spark, f: Callable):
+    input_start_transaction_pandas = pd.DataFrame([
+        {
+            "charge_point_id": "123",
+            "transaction_id": 1,
+            "meter_start": 0,
+            "start_timestamp":  "2022-01-01T08:00:00+00:00"
+        },
+    ])
+
+    input_start_transaction_df = spark.createDataFrame(
+        input_start_transaction_pandas,
+        StructType([
+            StructField("charge_point_id", StringType()),
+            StructField("transaction_id", IntegerType()),
+            StructField("meter_start", IntegerType()),
+            StructField("start_timestamp", StringType()),
+        ])
+    )
+
+    input_stop_transaction_request_pandas = pd.DataFrame([
+        {
+            "foo": "bar",
+            "meter_stop": 2780,
+            "timestamp": "2022-01-01T08:20:00+00:00",
+            "transaction_id": 1,
+            "reason": None,
+            "id_tag": "ea068c10-1bfb-4128-ab88-de565bd5f02f",
+            "transaction_data": None
+        }
+    ])
+
+    input_stop_transaction_request_schema = StructType([
+        StructField("foo", StringType(), True),
+        StructField("meter_stop", IntegerType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("transaction_id", IntegerType(), True),
+        StructField("reason", StringType(), True),
+        StructField("id_tag", StringType(), True),
+        StructField("transaction_data", StringType(), True),
+    ])
+
+    input_stop_transaction_request_df = spark.createDataFrame(
+        input_stop_transaction_request_pandas,
+        input_stop_transaction_request_schema
+    )
+
+
+    result = input_stop_transaction_request_df.transform(f, input_start_transaction_df)
+
+    print("Transformed DF:")
+    result.show()
+
+    result_count = result.count()
+    assert result_count == 1
+
+    result_row = result.collect()[0]
+    def assert_row_value(row: Row, field: str, value: Any):
+        r = getattr(row, field)
+        assert getattr(row, field) == value, f"Expected {value} but got {r}"
+
+    assert_row_value(result_row, "charge_point_id", "123")
+    assert_row_value(result_row, "transaction_id", 1)
+    assert_row_value(result_row, "meter_start", 0)
+    assert_row_value(result_row, "meter_stop", 2780)
+    assert_row_value(result_row, "start_timestamp", "2022-01-01T08:00:00+00:00")
+    assert_row_value(result_row, "stop_timestamp", "2022-01-01T08:20:00+00:00")
+
+    print("All tests pass! :)")
+
+test_join_with_start_transaction_responses_unit(spark, join_with_start_transaction_responses)
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from typing import List, Any
+
+def test_join_with_start_transaction_responses_e2e(input_df: DataFrame, spark, display_f, **kwargs):
+    result = input_df
+
+    print("Transformed DF:")
+    display_f(result)
+
+    assert set(result.columns) == {"charge_point_id", "transaction_id", "meter_start", "meter_stop", "start_timestamp", "stop_timestamp"}
+    assert result.count() == 2599, f"expected 95, but got {result.count()}"
+
+    result_sub = result.sort(col("transaction_id")).limit(3)
+    print("Reordered DF under test:")
+    display_f(result_sub)
+
+    def assert_expected_value(column: str, expected_values: List[Any]):
+        values = [getattr(x, column) for x in result_sub.select(col(column)).collect()]
+        assert values == expected_values, f"expected {expected_values} in column {column}, but got {values}"
+
+    assert_expected_value("charge_point_id", ['94073806-8222-430e-8ca4-fab78b58fb67', 'acea7af6-eb97-4158-8549-2edda4aab255', '7e8404de-845e-4562-9587-720707e87de8'])
+    assert_expected_value("transaction_id", [1, 2, 3])
+    assert_expected_value("meter_start", [0, 0, 0])
+    assert_expected_value("meter_stop", [95306, 78106, 149223])
+    assert_expected_value("start_timestamp", ['2023-01-01T10:43:09.900215+00:00', '2023-01-01T11:20:31.296429+00:00', '2023-01-01T14:03:42.294160+00:00'])
+    assert_expected_value("stop_timestamp", ['2023-01-01T18:31:34.833396+00:00', '2023-01-01T17:56:55.669396+00:00', '2023-01-01T23:19:26.063351+00:00'])
+
+    print("All tests pass! :)")
+
+test_join_with_start_transaction_responses_e2e(stop_transaction_request_df.\
+    transform(
+        join_with_start_transaction_responses, 
+        start_transaction_response_df.\
+            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
+    ),
+    spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Calculate the total_time
 
 # COMMAND ----------
 
@@ -149,6 +408,21 @@ display(stop_transaction_request_df.\
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Calculate total_energy
+
+# COMMAND ----------
+
 # Calculate total_energy (withColumn, cast)
 
 def calculate_total_energy(input_df: DataFrame) -> DataFrame:
@@ -167,6 +441,21 @@ display(stop_transaction_request_df.\
     transform(calculate_total_time).\
     transform(calculate_total_energy)
 )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Calculate total_parking_time
 
 # COMMAND ----------
 
@@ -198,6 +487,21 @@ def calculate_total_parking_time(input_df: DataFrame) -> DataFrame:
 display(meter_values_request_df.filter((col("measurand") == "Power.Active.Import") & (col("phase").isNull())).\
     transform(calculate_total_parking_time)
 )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: Join and Shape
 
 # COMMAND ----------
 
@@ -234,4 +538,10 @@ display(stop_transaction_request_df.\
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC #### Unit Test
 
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
