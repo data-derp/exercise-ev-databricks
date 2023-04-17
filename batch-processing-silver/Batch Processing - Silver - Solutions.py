@@ -1118,7 +1118,8 @@ def write_start_transaction_request(input_df: DataFrame):
 write_start_transaction_request(df.\
     transform(start_transaction_request_filter).\
     transform(start_transaction_request_unpack_json).\
-    transform(start_transaction_request_flatten))
+    transform(start_transaction_request_flatten).\
+    transform(start_transaction_request_cast))
 
 display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionRequest")))
 
@@ -1139,7 +1140,8 @@ def write_start_transaction_request(input_df: DataFrame):
 write_start_transaction_request(df.\
     transform(start_transaction_request_filter).\
     transform(start_transaction_request_unpack_json).\
-    transform(start_transaction_request_flatten))
+    transform(start_transaction_request_flatten).\
+    transform(start_transaction_request_cast))
 
 display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StartTransactionRequest")))
 
@@ -1223,7 +1225,8 @@ def write_stop_transaction_request(input_df: DataFrame):
 write_stop_transaction_request(df.\
     transform(stop_transaction_request_filter).\
     transform(stop_transaction_request_unpack_json).\
-    transform(stop_transaction_request_flatten))
+    transform(stop_transaction_request_flatten).\
+    transform(stop_transaction_request_cast))
 
 display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StopTransactionRequest")))
 
@@ -1243,7 +1246,8 @@ def write_stop_transaction_request(input_df: DataFrame):
 write_stop_transaction_request(df.\
     transform(stop_transaction_request_filter).\
     transform(stop_transaction_request_unpack_json).\
-    transform(stop_transaction_request_flatten))
+    transform(stop_transaction_request_flatten).\
+    transform(stop_transaction_request_cast))
 
 display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/StopTransactionRequest")))
 
