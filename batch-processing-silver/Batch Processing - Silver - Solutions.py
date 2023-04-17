@@ -247,7 +247,7 @@ def start_transaction_request_flatten(input_df: DataFrame):
     ### YOUR CODE HERE
     return input_df.\
         withColumn("connector_id", input_df.new_body.connector_id).\
-        withColumn("id_tag", input_df.new_body.connector_id).\
+        withColumn("id_tag", input_df.new_body.id_tag).\
         withColumn("meter_start", input_df.new_body.meter_start).\
         withColumn("timestamp", input_df.new_body.timestamp).\
         withColumn("reservation_id", input_df.new_body.reservation_id).\
@@ -279,6 +279,71 @@ test_start_transaction_request_flatten_unit(spark, start_transaction_request_fla
 from exercise_ev_databricks_unit_tests.batch_processing_silver import test_start_transaction_request_flatten_e2e
 
 test_start_transaction_request_flatten_e2e(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten), spark, display)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### EXERCISE: StartTransaction Request Cast Columns
+# MAGIC Cast the `timestamp` column to [TimestampType](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.TimestampType.html?highlight=timestamptype#pyspark.sql.types.TimestampType) using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp)
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- connector_id: integer (nullable = true)
+# MAGIC  |-- id_tag: integer (nullable = true)
+# MAGIC  |-- meter_start: integer (nullable = true)
+# MAGIC  |-- timestamp: timestamp (nullable = true)  #=> updated
+# MAGIC  |-- reservation_id: integer (nullable = true)
+# MAGIC ```
+
+# COMMAND ----------
+
+from pyspark.sql.types import TimestampType
+def start_transaction_request_cast(input_df: DataFrame) -> DataFrame:
+    ### YOU CODE HERE
+    return input_df
+    ###
+
+display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten).transform(start_transaction_request_cast))
+
+# COMMAND ----------
+
+############ SOLUTION ###########
+
+from pyspark.sql.functions import to_timestamp
+def start_transaction_request_cast(input_df: DataFrame) -> DataFrame:
+    ### YOU CODE HERE
+    return input_df.withColumn("timestamp", to_timestamp(col("timestamp")))
+    ###
+
+display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten).transform(start_transaction_request_cast))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.batch_processing_silver import test_start_transaction_request_cast_unit
+
+test_start_transaction_request_cast_unit(spark, start_transaction_request_cast)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.batch_processing_silver import test_start_transaction_request_cast_e2e
+
+test_start_transaction_request_cast_e2e(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten).transform(start_transaction_request_cast), spark, display)
 
 # COMMAND ----------
 
@@ -712,6 +777,75 @@ test_stop_transaction_request_flatten_e2e(df.transform(stop_transaction_request_
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### EXERCISE: StopTransaction Request Cast Columns
+# MAGIC Cast the `timestamp` column to [TimestampType](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.TimestampType.html?highlight=timestamptype#pyspark.sql.types.TimestampType) using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp).
+# MAGIC 
+# MAGIC Target Schema:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- message_id: string (nullable = true)
+# MAGIC  |-- message_type: integer (nullable = true)
+# MAGIC  |-- charge_point_id: string (nullable = true)
+# MAGIC  |-- action: string (nullable = true)
+# MAGIC  |-- write_timestamp: string (nullable = true)
+# MAGIC  |-- meter_stop: integer (nullable = true)
+# MAGIC  |-- timestamp: timestamp (nullable = true)
+# MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- reason: string (nullable = true)
+# MAGIC  |-- id_tag: string (nullable = true)
+# MAGIC  |-- transaction_data: array (nullable = true)
+# MAGIC  |    |-- element: string (containsNull = true)
+# MAGIC ```
+
+# COMMAND ----------
+
+from pyspark.sql.types import TimestampType
+def stop_transaction_request_cast(input_df: DataFrame) -> DataFrame:
+    ### YOU CODE HERE
+    return input_df
+    ###
+
+display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten).transform(stop_transaction_request_cast))
+
+# COMMAND ----------
+
+############ SOLUTION ###########
+from pyspark.sql.functions import to_timestamp
+
+def stop_transaction_request_cast(input_df: DataFrame) -> DataFrame:
+    ### YOU CODE HERE
+    return input_df.withColumn("timestamp", to_timestamp(col("timestamp")))
+    ###
+
+display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten).transform(stop_transaction_request_cast))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Unit Test
+
+# COMMAND ----------
+
+
+from exercise_ev_databricks_unit_tests.batch_processing_silver import test_stop_transaction_request_cast_unit
+
+test_stop_transaction_request_cast_unit(spark, stop_transaction_request_cast)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### E2E Test
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.batch_processing_silver import test_stop_transaction_request_cast_e2e
+
+test_stop_transaction_request_cast_e2e(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten).transform(stop_transaction_request_cast), spark, display)
+
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Process MeterValues Request
 
 # COMMAND ----------
@@ -881,7 +1015,7 @@ test_meter_values_request_unpack_json_e2e(df.transform(meter_values_request_filt
 
 # MAGIC %md
 # MAGIC ### EXERCISE: MeterValues Request Flatten
-# MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns! You might need to use [explode](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.explode.html?highlight=explode#pyspark.sql.functions.explode) for certain nested structures.
+# MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns! You might need to use [explode](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.explode.html?highlight=explode#pyspark.sql.functions.explode) for certain nested structures. We'll also take the additional step to convert the `timestamp` column to the TimestampType using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp).
 # MAGIC 
 # MAGIC Target Schema:
 # MAGIC ```
@@ -928,7 +1062,7 @@ def meter_values_request_flatten(input_df: DataFrame):
         withColumn("measurand", col("sampled_value.measurand")).\
         withColumn("phase", col("sampled_value.phase")).\
         withColumn("value", round(col("sampled_value.value").cast(DoubleType()),2)).\
-        select("message_id", "message_type", "charge_point_id", "action", "write_timestamp", col("new_body.transaction_id").alias("transaction_id"), "timestamp", "measurand", "phase", "value")
+        select("message_id", "message_type", "charge_point_id", "action", "write_timestamp", col("new_body.transaction_id").alias("transaction_id"), col("new_body.connector_id").alias("connector_id"), "timestamp", "measurand", "phase", "value")
     ###
 
 display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json).transform(meter_values_request_flatten))
@@ -948,6 +1082,7 @@ test_meter_values_request_flatten_unit(spark, meter_values_request_flatten)
 
 # MAGIC %md
 # MAGIC #### E2E Test
+# MAGIC This might take a minute.
 
 # COMMAND ----------
 
@@ -1186,7 +1321,3 @@ test_write_meter_values_request(spark, dbutils, out_dir)
 # MAGIC * MeterValues Request
 # MAGIC 
 # MAGIC Hypothetically, we could have also done the same for the remaining actions (e.g. Heartbeat Request/Response, BootNotification Request/Response), but to save some time, we've only processed the actions that are relevant to the Gold layers that we'll build next (thin-slices, ftw!). You might have noticed that some of the processing steps were a bit repetitive and especially towards the end, could definitely be D.R.Y.'ed up (and would be in production code), but for the purposes of the exercise, we've gone the long route.
-
-# COMMAND ----------
-
-
