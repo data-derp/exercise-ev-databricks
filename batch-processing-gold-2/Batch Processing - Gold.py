@@ -108,23 +108,6 @@ display(start_transaction_response_df.transform(match_start_transaction_requests
 
 # COMMAND ----------
 
-########## SOLUTION ##########
-def match_start_transaction_requests_with_responses(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.\
-        join(join_df, input_df.message_id == join_df.message_id, "left").\
-        select(
-            input_df.charge_point_id.alias("charge_point_id"), 
-            input_df.transaction_id.alias("transaction_id"), 
-            join_df.meter_start.alias("meter_start"), 
-            join_df.timestamp.alias("start_timestamp")
-        )
-    ###
-    start_transaction_response_df
-display(start_transaction_response_df.transform(match_start_transaction_requests_with_responses, start_transaction_request_df))
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### Unit Test
 
@@ -169,32 +152,6 @@ test_match_start_transaction_requests_with_responses_e2e(start_transaction_respo
 def join_with_start_transaction_responses(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
         ### YOUR CODE HERE
         return input_df
-        ###
-
-    
-display(stop_transaction_request_df.\
-    transform(
-        join_with_start_transaction_responses, 
-        start_transaction_response_df.\
-            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
-    )
-)
-
-# COMMAND ----------
-
-############## SOLUTION ##############
-def join_with_start_transaction_responses(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
-        ### YOUR CODE HERE
-        return input_df. \
-        join(join_df, input_df.transaction_id == join_df.transaction_id, "left"). \
-        select(
-            join_df.charge_point_id, 
-            join_df.transaction_id, 
-            join_df.meter_start, 
-            input_df.meter_stop.alias("meter_stop"), 
-            join_df.start_timestamp, 
-            input_df.timestamp.alias("stop_timestamp")
-        )
         ###
 
     
@@ -276,31 +233,6 @@ display(stop_transaction_request_df.\
 
 # COMMAND ----------
 
-############# SOLUTION ###############
-from pyspark.sql.functions import col, round
-from pyspark.sql.types import DoubleType
-
-def calculate_total_time(input_df: DataFrame) -> DataFrame:
-    seconds_in_one_hour = 3600
-    ### YOUR CODE HERE
-    return input_df. \
-        withColumn("total_time", col("stop_timestamp").cast("long")/seconds_in_one_hour - col("start_timestamp").cast("long")/seconds_in_one_hour). \
-        withColumn("total_time", round(col("total_time").cast(DoubleType()),2))
-    ###
-    
-display(stop_transaction_request_df.\
-    transform(
-        join_with_start_transaction_responses, 
-        start_transaction_response_df.\
-            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
-    ).\
-    transform(calculate_total_time)
-)
-
-
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### Unit Test
 
@@ -358,27 +290,6 @@ from pyspark.sql.types import DoubleType
 def calculate_total_energy(input_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
     return input_df
-    ###
-
-display(stop_transaction_request_df.\
-    transform(
-        join_with_start_transaction_responses, 
-        start_transaction_response_df.\
-            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
-    ).\
-    transform(calculate_total_time).\
-    transform(calculate_total_energy)
-)
-
-# COMMAND ----------
-
-############ SOLUTION ############
-
-def calculate_total_energy(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df \
-        .withColumn("total_energy", col("meter_stop") - col("meter_start")) \
-        .withColumn("total_energy", round(col("total_energy").cast(DoubleType()),2))
     ###
 
 display(stop_transaction_request_df.\
@@ -467,36 +378,6 @@ display(meter_values_request_df.filter((col("measurand") == "Power.Active.Import
 
 # COMMAND ----------
 
-############## SOLUTION ###############
-from pyspark.sql.functions import when, sum, abs, first, last, lag
-from pyspark.sql.window import Window
-
-def calculate_total_parking_time(input_df: DataFrame) -> DataFrame:
-    window_by_transaction = Window.partitionBy("transaction_id").orderBy(col("timestamp").asc())
-    window_by_transaction_group = Window.partitionBy(["transaction_id", "charging_group"]).rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
-    ### YOUR CODE HERE
-    return input_df.\
-        withColumn("charging", when(col("value") > 0,1).otherwise(0)).\
-        withColumn("boundary", abs(col("charging")-lag(col("charging"), 1, 0).over(window_by_transaction))).\
-        withColumn("charging_group", sum("boundary").over(window_by_transaction)).\
-        select(col("transaction_id"), "timestamp", "value", "charging", "boundary", "charging_group").\
-        withColumn("first", first('timestamp').over(window_by_transaction_group).alias("first_id")).\
-        withColumn("last", last('timestamp').over(window_by_transaction_group).alias("last_id")).\
-        filter(col("charging") == 0).\
-        groupBy("transaction_id", "charging_group").agg(
-            first((col("last").cast("long") - col("first").cast("long"))).alias("group_duration")
-        ).\
-        groupBy("transaction_id").agg(
-            round((sum(col("group_duration"))/3600).cast(DoubleType()), 2).alias("total_parking_time")
-        )
-    ###
-
-display(meter_values_request_df.filter((col("measurand") == "Power.Active.Import") & (col("phase").isNull())).\
-    transform(calculate_total_parking_time)
-)
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### Unit Test
 
@@ -571,39 +452,6 @@ display(stop_transaction_request_df.\
 
 # COMMAND ----------
 
-########### SOLUTION ############
-def join_and_shape(input_df: DataFrame, joined_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.\
-        join(joined_df, on=input_df.transaction_id == joined_df.transaction_id, how="left").\
-        select(
-            input_df.charge_point_id, 
-            input_df.transaction_id, 
-            input_df.meter_start, 
-            input_df.meter_stop, 
-            input_df.start_timestamp, 
-            input_df.stop_timestamp, 
-            input_df.total_time, 
-            input_df.total_energy, 
-            joined_df.total_parking_time
-        )
-    ###
-
-display(stop_transaction_request_df.\
-    transform(
-        join_with_start_transaction_responses, 
-        start_transaction_response_df.\
-            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
-    ).\
-    transform(calculate_total_time).\
-    transform(calculate_total_energy).\
-    transform(join_and_shape, meter_values_request_df.filter((col("measurand") == "Power.Active.Import") & (col("phase").isNull())).\
-        transform(calculate_total_parking_time)
-     )
-)
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### Unit Test
 
@@ -652,33 +500,6 @@ def write_to_parquet(input_df: DataFrame):
     output_directory = f"{out_dir}/cdr"
     ### YOUR CODE HERE
     input_df
-    ###
-
-write_to_parquet(stop_transaction_request_df.\
-    transform(
-        join_with_start_transaction_responses, 
-        start_transaction_response_df.\
-            transform(match_start_transaction_requests_with_responses, start_transaction_request_df)
-    ).\
-    transform(calculate_total_time).\
-    transform(calculate_total_energy).\
-    transform(join_and_shape, meter_values_request_df.filter((col("measurand") == "Power.Active.Import") & (col("phase").isNull())).\
-        transform(calculate_total_parking_time)
-     ))
-
-display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/cdr")))
-
-# COMMAND ----------
-
-############ SOLUTION ##############
-
-def write_to_parquet(input_df: DataFrame):
-    output_directory = f"{out_dir}/cdr"
-    ### YOUR CODE HERE
-    input_df.\
-        write.\
-        mode("overwrite").\
-        parquet(output_directory)
     ###
 
 write_to_parquet(stop_transaction_request_df.\
