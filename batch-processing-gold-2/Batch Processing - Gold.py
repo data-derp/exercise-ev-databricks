@@ -1,9 +1,9 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Batch Processing - Gold
-# MAGIC 
+# MAGIC
 # MAGIC Remember our domain question, **What is the final charge time and final charge dispense for every completed transaction**? It was the exercise which required several joins and window queries. :)  We're here to do it again (the lightweight version) but with the help of the work we did in the Silver Tier. 
-# MAGIC 
+# MAGIC
 # MAGIC Steps:
 # MAGIC * Match StartTransaction Requests and Responses
 # MAGIC * Join Stop Transaction Requests and StartTransaction Responses, matching on transaction_id (left join)
@@ -13,8 +13,8 @@
 # MAGIC * Calculate total_parking_time (explode, filter, window, groupBy)
 # MAGIC * Join and Shape (left join, select) 
 # MAGIC * Write to Parquet
-# MAGIC 
-# MAGIC **NOTE:** You've already done these these exercises before. We absolutely recommend bringing over your answers from that exercise to speed things along (with some minor tweaks), because you already know how to do all of that already! Of course, you're welcome to freshly rewrite your answers to test yourself!
+# MAGIC
+# MAGIC **NOTE:** You've already done these exercises before. We absolutely recommend bringing over your answers from that exercise to speed things along (with some minor tweaks), because you already know how to do all of that already! Of course, you're welcome to freshly rewrite your answers to test yourself!
 
 # COMMAND ----------
 
@@ -87,7 +87,7 @@ display(meter_values_request_df)
 # MAGIC %md
 # MAGIC ### EXERCISE: Match StartTransaction Requests and Responses
 # MAGIC In this exercise, match StartTransaction Requests and Responses using a [left join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) on `message_id`.
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -135,7 +135,7 @@ test_match_start_transaction_requests_with_responses_e2e(start_transaction_respo
 # MAGIC %md
 # MAGIC ### EXERCISE: Join Stop Transaction Requests and StartTransaction Responses
 # MAGIC In this exercise, [left join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) Stop Transaction Requests and the newly joined StartTransaction Request/Response DataFrame (from the previous exercise), matching on transaction_id (left join).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -196,7 +196,7 @@ test_join_with_start_transaction_responses_e2e(stop_transaction_request_df.\
 # MAGIC %md
 # MAGIC ### EXERCISE: Calculate the total_time
 # MAGIC Using Pyspark functions [withColumn](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html) and [cast](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.Column.cast.html?highlight=cast#pyspark.sql.Column.cast) and little creative maths, calculate the total charging time (stop_timestamp - start_timestamp) in hours (two decimal places).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -267,8 +267,8 @@ test_calculate_total_time_hours_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Calculate total_energy
 # MAGIC Calculate total_energy (withColumn, cast)
-# MAGIC Using [withColumn](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn) and [cast](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.Column.cast.html?highlight=cast#pyspark.sql.Column.cast), calculate the total energy by subtracting `meter_stop` from `meter_start` and rounding to the nearest 2 decimal points.
-# MAGIC 
+# MAGIC Using [withColumn](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn) and [cast](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.Column.cast.html?highlight=cast#pyspark.sql.Column.cast), calculate the total energy by subtracting `meter_stop` from `meter_start`, converting that value from Wh (Watt-hours) to kWh (kilo-Watt-hours), and rounding to the nearest 2 decimal points.
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -281,6 +281,8 @@ test_calculate_total_time_hours_e2e(
 # MAGIC  |-- total_time: double (nullable = true)
 # MAGIC  |-- total_energy: double (nullable = true)
 # MAGIC  ```
+# MAGIC
+# MAGIC  **Hint:** Wh -> kWh = divide by 1000
 
 # COMMAND ----------
 
@@ -336,14 +338,14 @@ test_calculate_total_energy_e2e(stop_transaction_request_df.\
 # MAGIC %md
 # MAGIC ### EXERCISE: Calculate total_parking_time
 # MAGIC In our target object, there is a field `total_parking_time` which is the number of hours that the EV is plugged in but not charging. This denoted in the **Meter Values Request** by the `measurand` = `Power.Active.Import` where `phase` is `None` or `null` and a value of `0`.
-# MAGIC 
+# MAGIC
 # MAGIC While it might seem easy on the surface, the logic is actually quite complex and will require you to spend some time understanding [Windows](https://sparkbyexamples.com/pyspark/pyspark-window-functions/) in order for you to complete it. Don't worry, take your time to think through the problem!
-# MAGIC 
+# MAGIC
 # MAGIC We'll need to do this in a handful of steps:
 # MAGIC 1. Build a DataFrame from our MeterValue Request data with `transaction_id`, `timestamp`, `measurand`, `phase`, and `value` pulled out as columns (explode)
 # MAGIC  2. Return only rows with `measurand` = `Power.Active.Import` and `phase` = `Null`
 # MAGIC 3. Figure out how to represent in the DataFrame when a Charger is actively charging or not charging, calculate the duration of each of those groups, and sum the duration of the non charging groups as the `total_parking_time`
-# MAGIC 
+# MAGIC
 # MAGIC **Notes**
 # MAGIC * There may be many solutions but the focus should be on using the Spark built-in API
 # MAGIC * You should be able to accomplish this entirely in DataFrames without for-expressions
@@ -352,7 +354,7 @@ test_calculate_total_energy_e2e(stop_transaction_request_df.\
 # MAGIC   * [filter](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.filter.html?highlight=filter#pyspark.sql.DataFrame.filter)
 # MAGIC   * [Window](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.Window.html?highlight=window#pyspark.sql.Window)
 # MAGIC   * [groupBy](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.groupBy.html?highlight=groupby#pyspark.sql.DataFrame.groupBy)
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -404,11 +406,11 @@ test_calculate_total_parking_time_e2e(meter_values_request_df.filter((col("measu
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Join and Shape
-# MAGIC 
+# MAGIC
 # MAGIC Join and Shape (left join, select)
-# MAGIC 
+# MAGIC
 # MAGIC Now that we have the `total_parking_time`, we can join that with our Target Dataframe (where we stored our Stop/Start Transaction data).
-# MAGIC 
+# MAGIC
 # MAGIC Recall that our newly transformed DataFrame has the following schema:
 # MAGIC ```
 # MAGIC root
@@ -532,7 +534,7 @@ test_write_to_parquet(spark, dbutils, out_dir)
 # MAGIC %md
 # MAGIC ## Reflect
 # MAGIC Congratulations on finishing the Gold Tier exercise! Compared to a previous exercise where we did some of these exact exercises, you might have noticed that this time around, it was significantly easier to comprehend and complete because we didn't need to perform as many repetitive transformations to get to the interesting business logic.
-# MAGIC 
+# MAGIC
 # MAGIC * What might you do with this data now that you've transformed it?
 
 # COMMAND ----------
