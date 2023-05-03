@@ -101,17 +101,6 @@ fig.show()
 
 # COMMAND ----------
 
-############ SOLUTION #############
-import plotly.express as px
-
-### YOUR CODE HERE
-fig = px.histogram(df.toPandas(), x="total_energy")
-###
-
-fig.show()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ### Reflect
 # MAGIC * What kind of information can you extract from this plot? 
@@ -132,15 +121,6 @@ import plotly.express as px
 fig = px.box(None, y=None)
 ###
 
-fig.show()
-
-# COMMAND ----------
-
-############ SOLUTION #############
-
-import plotly.express as px
-
-fig = px.box(df.toPandas(), y="total_energy")
 fig.show()
 
 # COMMAND ----------
