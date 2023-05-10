@@ -1,11 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Batch Processing - Silver Tier
-# MAGIC 
+# MAGIC
 # MAGIC In the last exercise, we took our data wrote it to the Parquet format, ready for us to pick up in the Silver Tier. In this exercise, we'll take our first step towards curation and cleanup by:
 # MAGIC * Unpacking strings containing json to JSON
 # MAGIC * Flattening our data (unpack nested structures and bring to top level)
-# MAGIC 
+# MAGIC
 # MAGIC We'll do this for:
 # MAGIC * StartTransaction Request
 # MAGIC * StartTransaction Response
@@ -47,13 +47,14 @@ helpers.clean_working_directory()
 
 # MAGIC %md
 # MAGIC ## Read Data from Bronze Layer
-# MAGIC Let's read the parquet files that we created in the bronze layer!
+# MAGIC Let's read the parquet files that we created in the Bronze layer!
+# MAGIC
+# MAGIC **Note:** normally we'd use the EXACT data and location of the data that was created in the Bronze layer but for simplicity and consistent results [of this exercise], we're going to read in a Bronze output dataset that has been pre-prepared. Don't worry, it's the same as the output from your exercise (if all of your tests passed)!.
 
 # COMMAND ----------
 
-input_dir = working_directory.replace(exercise_name, "batch_processing_bronze_ingest")
-print(input_dir)
-
+url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-bronze/output/part-00000-tid-5639432049181042996-9b69459e-aeff-43e0-8e41-01d3b2c6f5d5-37-1-c000.snappy.parquet"
+filepath = helpers.download_to_local_dir(url)
 
 # COMMAND ----------
 
@@ -64,7 +65,7 @@ def read_parquet(filepath: str) -> DataFrame:
     df = spark.read.parquet(filepath)
     return df
     
-df = read_parquet(f"{input_dir}/output/")
+df = read_parquet(filepath)
 
 display(df)
 
@@ -118,7 +119,7 @@ test_start_transaction_request_filter_e2e(df.transform(start_transaction_request
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Request Unpack JSON
 # MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -181,7 +182,7 @@ test_start_transaction_request_unpack_json_e2e(df.transform(start_transaction_re
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Request Flatten
 # MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns!
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -234,7 +235,7 @@ test_start_transaction_request_flatten_e2e(df.transform(start_transaction_reques
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Request Cast Columns
 # MAGIC Cast the `timestamp` column to [TimestampType](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.TimestampType.html?highlight=timestamptype#pyspark.sql.types.TimestampType) using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp)
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -331,7 +332,7 @@ test_start_transaction_response_filter_e2e(df.transform(start_transaction_respon
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Response Unpack JSON
 # MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -395,7 +396,7 @@ test_start_transaction_response_unpack_json_e2e(df.transform(start_transaction_r
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Response Flatten
 # MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns!
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -490,7 +491,7 @@ test_stop_transaction_request_filter_e2e(df.transform(stop_transaction_request_f
 # MAGIC %md
 # MAGIC ### EXERCISE: StopTransaction Request Unpack JSON
 # MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -557,7 +558,7 @@ test_stop_transaction_request_unpack_json_e2e(df.transform(stop_transaction_requ
 # MAGIC %md
 # MAGIC ### EXERCISE: StopTransaction Request Flatten
 # MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns!
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -611,7 +612,7 @@ test_stop_transaction_request_flatten_e2e(df.transform(stop_transaction_request_
 # MAGIC %md
 # MAGIC ### EXERCISE: StopTransaction Request Cast Columns
 # MAGIC Cast the `timestamp` column to [TimestampType](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.TimestampType.html?highlight=timestamptype#pyspark.sql.types.TimestampType) using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -712,7 +713,7 @@ test_meter_values_request_filter_e2e(df.transform(meter_values_request_filter), 
 # MAGIC %md
 # MAGIC ### EXERCISE: MeterValues Request Unpack JSON
 # MAGIC In this exercise, we'll unpack the `body` column containing a json string and and create a new column `new_body` containing that parsed json, using [from_json](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.from_json.html).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -793,7 +794,7 @@ test_meter_values_request_unpack_json_e2e(df.transform(meter_values_request_filt
 # MAGIC %md
 # MAGIC ### EXERCISE: MeterValues Request Flatten
 # MAGIC In this exercise, we will flatten the nested json within the `new_body` column and pull them out to their own columns, using [withColumn](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html?highlight=withcolumn#pyspark.sql.DataFrame.withColumn). Don't forget to [drop](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.DataFrame.drop.html?highlight=drop#pyspark.sql.DataFrame.drop) extra columns! You might need to use [explode](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.explode.html?highlight=explode#pyspark.sql.functions.explode) for certain nested structures. We'll also take the additional step to convert the `timestamp` column to the TimestampType using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp).
-# MAGIC 
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -995,5 +996,5 @@ test_write_meter_values_request(spark, dbutils, out_dir)
 # MAGIC * StartTransaction Response
 # MAGIC * StopTransaction Request
 # MAGIC * MeterValues Request
-# MAGIC 
+# MAGIC
 # MAGIC Hypothetically, we could have also done the same for the remaining actions (e.g. Heartbeat Request/Response, BootNotification Request/Response), but to save some time, we've only processed the actions that are relevant to the Gold layers that we'll build next (thin-slices, ftw!). You might have noticed that some of the processing steps were a bit repetitive and especially towards the end, could definitely be D.R.Y.'ed up (and would be in production code), but for the purposes of the exercise, we've gone the long route.

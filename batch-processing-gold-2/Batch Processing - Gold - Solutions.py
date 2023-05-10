@@ -51,17 +51,22 @@ helpers.clean_working_directory()
 
 # MAGIC %md
 # MAGIC ## Read Data from Silver Layer
-# MAGIC Let's read the parquet files that we created in the bronze layer!
+# MAGIC Let's read the parquet files that we created in the Silver layer!
+# MAGIC
+# MAGIC **Note:** normally we'd use the EXACT data and location of the data that was created in the Silver layer but for simplicity and consistent results [of this exercise], we're going to read in a Silver output dataset that has been pre-prepared. Don't worry, it's the same as the output from your exercise (if all of your tests passed)!
 
 # COMMAND ----------
 
-input_dir = working_directory.replace(exercise_name, "batch_processing_silver")
-print(input_dir)
+meter_values_request_url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-silver/output/MeterValuesRequest/part-00000-tid-468425781006758111-f9d48bc3-3b4c-497e-8e9c-77cf63db98f8-207-1-c000.snappy.parquet"
+start_transaction_request_url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-silver/output/StartTransactionRequest/part-00000-tid-9191649339140138460-0a4f58e5-1397-41cc-a6a1-f6756f3332b6-218-1-c000.snappy.parquet"
+start_transaction_response_url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-silver/output/StartTransactionResponse/part-00000-tid-5633887168695670016-762a6dfa-619c-412d-b7b8-158ee41df1b2-185-1-c000.snappy.parquet"
+stop_transaction_request_url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-silver/output/StopTransactionRequest/part-00000-tid-5108689541678827436-b76f4703-dabf-439a-825d-5343aabc03b6-196-1-c000.snappy.parquet"
 
+meter_values_request_filepath = helpers.download_to_local_dir(meter_values_request_url)
+start_transaction_request_filepath = helpers.download_to_local_dir(start_transaction_request_url)
+start_transaction_response_filepath = helpers.download_to_local_dir(start_transaction_response_url)
+stop_transaction_request_filepath = helpers.download_to_local_dir(stop_transaction_request_url)
 
-# COMMAND ----------
-
-dbutils.fs.ls(f"{input_dir}/output")
 
 # COMMAND ----------
 
@@ -72,10 +77,10 @@ def read_parquet(filepath: str) -> DataFrame:
     df = spark.read.parquet(filepath)
     return df
     
-start_transaction_request_df = read_parquet(f"{input_dir}/output/StartTransactionRequest")
-start_transaction_response_df = read_parquet(f"{input_dir}/output/StartTransactionResponse")
-stop_transaction_request_df = read_parquet(f"{input_dir}/output/StopTransactionRequest")
-meter_values_request_df = read_parquet(f"{input_dir}/output/MeterValuesRequest")
+start_transaction_request_df = read_parquet(start_transaction_request_filepath)
+start_transaction_response_df = read_parquet(start_transaction_response_filepath)
+stop_transaction_request_df = read_parquet(stop_transaction_request_filepath)
+meter_values_request_df = read_parquet(meter_values_request_filepath)
 
 display(start_transaction_request_df)
 display(start_transaction_response_df)
