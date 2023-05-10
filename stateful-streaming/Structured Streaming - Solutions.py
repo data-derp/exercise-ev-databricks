@@ -524,7 +524,7 @@ def test_aggregate_window_watermark_unit(spark, f: Callable):
       )
       record_df.write.mode("append").format("delta").save(input_location)
 
-      incoming_data = (
+      fancy_streaming_df = (
           spark
           .readStream.format("delta")
           .load(input_location)
@@ -532,7 +532,7 @@ def test_aggregate_window_watermark_unit(spark, f: Callable):
       )
 
       streaming_query = (
-          incoming_data
+          fancy_streaming_df
           .writeStream
           .format("delta")
           .option("path", output_location)
