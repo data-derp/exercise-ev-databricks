@@ -1,1 +1,0 @@
-![navi-to-file-explorer.png](./assets/navi-to-file-explorer.png)
