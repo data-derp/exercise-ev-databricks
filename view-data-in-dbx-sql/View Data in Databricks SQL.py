@@ -99,7 +99,7 @@ create_table(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 2. Check that your database and table exists 
+# MAGIC 2. Check that your database and table exists. It might take some time, while your Warehouse cluster starts up (by default).
 # MAGIC
 # MAGIC ![table-present.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/view-data-in-dbx-sql/assets/table-present.png?raw=true)
 
