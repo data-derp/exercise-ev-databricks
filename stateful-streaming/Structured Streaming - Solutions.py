@@ -513,7 +513,7 @@ def test_aggregate_window_watermark_unit(spark, f: Callable):
     # we need to run across multiple triggers.
     # Spark will first check for the latest timestamp in the current trigger,
     # then use that as the criteria for dropping late events in the *next* trigger.
-    # The simplest way to achieve this control is to use:
+    # The easiest way to achieve this control is to use:
     # - Delta Lake as a streaming sink and source with trigger(availableNow=True)
     # - A simple Python for loop to move to the next trigger 
     for record in sequence:
