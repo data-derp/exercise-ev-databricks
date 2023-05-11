@@ -2,23 +2,10 @@
 # MAGIC %md
 # MAGIC # Visualisations
 # MAGIC In this exercise, we'll take our data from the Gold layer and create a visualisation. We want to show a distribution of charge dispensed along with the mean, median and range.
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Visualisations with Plotly
-# MAGIC Before we get started on the exercise, we'll quickly review [Plotly](https://plotly.com/), which is a common basic tool for Data Visualisations. 
 # MAGIC
-# MAGIC Examples from [Plotly](https://plotly.com/python/getting-started/)
-
-# COMMAND ----------
-
-import plotly.express as px
-
-# We see that set labels on the x-axis and the values on the y-axis.
-fig = px.bar(x=["a", "b", "c"], y=[1, 3, 2])
-fig.write_html('first_figure.html', auto_open=True)
-fig
+# MAGIC There are many tools that we can use to generate Visualisations. This exercise will explore visualisation creation using:
+# MAGIC * Databricks Graphs
+# MAGIC * Plotly
 
 # COMMAND ----------
 
@@ -55,7 +42,7 @@ helpers.clean_working_directory()
 
 # MAGIC %md
 # MAGIC ## Read Data from Gold Layer
-# MAGIC Let's read the parquet files that we created in the bronze layer!
+# MAGIC Let's read the parquet files that we created in the Gold layer!
 
 # COMMAND ----------
 
@@ -63,9 +50,10 @@ input_dir = working_directory.replace(exercise_name, "batch_processing_gold")
 print(input_dir)
 
 
-# COMMAND ----------
+url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-gold-2/output/cdr/part-00000-tid-8188744955325376871-3934a431-560c-4ff0-b57c-88baab52939b-566-1-c000.snappy.parquet"
 
-dbutils.fs.ls(f"{input_dir}/output/cdr")
+filepath = helpers.download_to_local_dir(url)
+
 
 # COMMAND ----------
 
@@ -76,10 +64,65 @@ def read_parquet(filepath: str) -> DataFrame:
     df = spark.read.parquet(filepath)
     return df
     
-df = read_parquet(f"{input_dir}/output/cdr")
+df = read_parquet(filepath)
 
 display(df)
 
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## EXERCISE: Visualisations with Databricks
+# MAGIC Let's start with the easy one. Databricks comes with Visualisation and Dashboarding capabilities. When we `display` our DataFrame in Databricks, we have the possibility to create a Visualisation from it.
+# MAGIC
+# MAGIC 1. Click the `+` button next to the display `Table`.
+# MAGIC
+# MAGIC ![databricks-click-visualisation.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/visualisation/assets/databricks-click-visualisation.png?raw=true)
+# MAGIC
+# MAGIC
+# MAGIC 2. Then, use the Visualisation Editor to create a Histogram:
+# MAGIC ![databricks-visualisation-editor-histogram.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/visualisation/assets/databricks-visualisation-editor-histogram.png?raw=true)
+# MAGIC
+# MAGIC 3. The resulting Histogram should look as follows:
+# MAGIC ![databricks-histogram-total-parking-time.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/visualisation/assets/databricks-histogram-total-parking-time.png?raw=true)
+
+# COMMAND ----------
+
+display(df)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Try playing with the bin size. How does the graph change? How can this graph be interpreted?
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Databricks also has Dashboarding capabilities! Click the drop down arrow on the Histogram you just created and click **Add to Dashboard**.
+# MAGIC
+# MAGIC ![databricks-histogram-add-to-dashboard.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/visualisation/assets/databricks-histogram-add-to-dashboard.png?raw=true)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Feel free to try this with other fields in the DataFrame!
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Visualisations with Plotly
+# MAGIC Outside of Databricks, there are many other visualisation tools. One of the more customisable ones is called Plotly. Before we get started on the exercise, we'll quickly review [Plotly](https://plotly.com/).
+# MAGIC
+# MAGIC Examples from [Plotly](https://plotly.com/python/getting-started/)
+
+# COMMAND ----------
+
+import plotly.express as px
+
+# We see that set labels on the x-axis and the values on the y-axis.
+fig = px.bar(x=["a", "b", "c"], y=[1, 3, 2])
+fig.write_html('first_figure.html', auto_open=True)
+fig
 
 # COMMAND ----------
 
@@ -90,7 +133,6 @@ display(df)
 
 # COMMAND ----------
 
-############ SOLUTION #############
 import plotly.express as px
 
 ### YOUR CODE HERE
