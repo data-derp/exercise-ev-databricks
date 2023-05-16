@@ -97,7 +97,7 @@ def read_from_stream(input_df: DataFrame) -> DataFrame:
         drop("index")
 
 
-# df = read_from_stream(mock_data_df)
+df = read_from_stream(mock_data_df)
 # display(df)
 
 # COMMAND ----------
