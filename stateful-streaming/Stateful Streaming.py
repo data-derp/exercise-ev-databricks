@@ -102,32 +102,6 @@ def read_from_stream(input_df: DataFrame) -> DataFrame:
 
 # COMMAND ----------
 
-
-############ SOLUTION ##############
-from pyspark.sql import DataFrame
-
-def read_from_stream(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    raw_stream_data = (
-        spark.readStream.format("rate")
-        .option("rowsPerSecond", 10)
-        .load()
-    )
-    ###
-
-
-    # This is just data setup, not part of the exercise
-    return raw_stream_data.\
-        join(mock_data_df, raw_stream_data.value == mock_data_df.index, 'left').\
-        drop("timestamp").\
-        drop("index")
-
-
-# df = read_from_stream(mock_data_df)
-# display(df)
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ### Unit Test
 
@@ -176,31 +150,6 @@ def unpack_json_from_status_notification_request(input_df: DataFrame) -> DataFra
 
 # COMMAND ----------
 
-############## SOLUTION #################
-
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import from_json, col
-from pyspark.sql.types import StringType, IntegerType, StructField, StructType
-
-def unpack_json_from_status_notification_request(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    body_schema = StructType([
-        StructField("connector_id", IntegerType(), True),
-        StructField("error_code", StringType(), True),
-        StructField("status", StringType(), True),
-        StructField("timestamp", StringType(), True),
-        StructField("info", IntegerType(), True),
-        StructField("vendor_id", IntegerType(), True),
-        StructField("vendor_error_code", IntegerType(), True),
-    ])
-
-    return input_df.withColumn("new_body", from_json(col("body"), schema=body_schema))
-    ###
-
-# display(df.transform(read_from_stream).transform(unpack_json_from_status_notification_request))
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### Unit Test
 
@@ -238,24 +187,6 @@ def select_columns(input_df: DataFrame) -> DataFrame:
 
 # COMMAND ----------
 
-########### SOLUTION ###########
-from pyspark.sql import DataFrame
-
-from pyspark.sql.functions import col, expr, to_timestamp
-import pyspark.sql.functions as F
-
-def select_columns(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df \
-        .withColumn("status", expr("new_body.status"))\
-        .withColumn("timestamp", to_timestamp(col("new_body.timestamp")))\
-        .select("charge_point_id", "status", "timestamp")
-    ###
-
-# display(df.transform(read_from_stream).transform(unpack_json_from_status_notification_request).transform(select_columns))
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC #### Unit Test
 
@@ -281,24 +212,6 @@ def aggregate_window_watermark(input_df: DataFrame) -> DataFrame:
     ###
 
 # display(df.transform(read_from_stream).transform(unpack_json_from_status_notification_request).transform(select_columns).transform(aggregate_window_watermark), outputMode="update")
-
-# COMMAND ----------
-
-############# SOLUTION ##############
-from pyspark.sql.functions import from_json, window
-
-def aggregate_window_watermark(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df\
-        .withWatermark("timestamp", "10 minutes") \
-        .groupBy(col("charge_point_id"),
-                col("status"),
-                window(col("timestamp"), "5 minutes"))\
-        .agg(F.count(col("status")))
-    ###
-
-# display(df.transform(read_from_stream).transform(unpack_json_from_status_notification_request).transform(select_columns).transform(aggregate_window_watermark), outputMode="update")
-
 
 # COMMAND ----------
 
@@ -368,26 +281,6 @@ write_aggregate_window_watermark(df.\
     transform(aggregate_window_watermark))
 
 
-
-# COMMAND ----------
-
-############### SOLUTION #################
-
-def write_aggregate_window_watermark(input_df: DataFrame):
-    ### YOUR CODE HERE
-    input_df\
-        .writeStream\
-            .option("checkpointLocation", checkpoint_dir)\
-            .option("path", out_dir)\
-            .format("parquet")\
-            .start()
-    ###
-
-write_aggregate_window_watermark(df.\
-    transform(read_from_stream).\
-    transform(unpack_json_from_status_notification_request).\
-    transform(select_columns).\
-    transform(aggregate_window_watermark))
 
 # COMMAND ----------
 
