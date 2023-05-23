@@ -206,12 +206,6 @@ display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/year=2023/month=1/day=1/
 
 # COMMAND ----------
 
-def test_files_exist(spark, **kwargs):
-    result = spark.createDataFrame(dbutils.fs.ls(f"{kwargs['out_dir']}/year=2023/month=1/day=1/hour=9/minute=2"))
-    result_count = result.count()
-    expected_count = 2
-    assert result_count == expected_count, f"expected {expected_count}, but got {result_count}"
+from exercise_ev_databricks_unit_tests.delta_lake_bronze import test_files_exist_e2e
 
-    print("All tests pass! :)")
-
-test_files_exist(spark, out_dir=out_dir)
+test_files_exist_e2e(spark, dbutils=dbutils, out_dir=out_dir)
