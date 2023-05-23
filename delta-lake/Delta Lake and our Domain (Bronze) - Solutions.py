@@ -68,7 +68,19 @@ display(mock_data_df)
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC Setting up the stream of data and updating the write_timestamp to the streaming timestamp to simulate real-time data.
+
+# COMMAND ----------
+
 from pyspark.sql import DataFrame
+from datetime import datetime
+from pyspark.sql.types import LongType
+
+def to_epoch(timestamp: datetime):
+    return int(timestamp.timestamp())
+
+to_epoch_udf = udf(to_epoch, LongType())
 
 def read_from_stream(input_df: DataFrame) -> DataFrame:
     raw_stream_data = (
@@ -77,12 +89,11 @@ def read_from_stream(input_df: DataFrame) -> DataFrame:
         .load()
     )
 
-    # This is just data setup, not part of the exercise
     return raw_stream_data.\
         join(mock_data_df, raw_stream_data.value == mock_data_df.index, 'left').\
-        drop("value").\
-        drop("timestamp").\
-        drop("index")
+        drop(*["write_timestamp", "write_timestamp_epoch", "value", "index"]). \
+        withColumnRenamed("timestamp", "write_timestamp").\
+        withColumn("write_timestamp_epoch", to_epoch_udf(col("write_timestamp")))
 
 # COMMAND ----------
 
@@ -202,7 +213,7 @@ write(set_partitioning_cols(read_from_stream(mock_data_df).transform(read_from_s
 
 # COMMAND ----------
 
-display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/year=2023/month=1/day=1/hour=9/minute=2")))
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/year=2023")))
 
 # COMMAND ----------
 
