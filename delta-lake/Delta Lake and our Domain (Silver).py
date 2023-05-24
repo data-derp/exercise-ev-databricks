@@ -69,26 +69,6 @@ def read_partition(input_df: DataFrame, filter_date: datetime) -> DataFrame:
 
 # COMMAND ----------
 
-################# SOLUTION #################
-
-from datetime import datetime, timezone, timedelta
-from dateutil import parser
-from pyspark.sql.functions import year, month, dayofmonth, hour, minute, col
-from pyspark.sql import DataFrame
-
-def read_partition(input_df: DataFrame, filter_date: datetime) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.where(
-        (year(col("write_timestamp")) == filter_date.year) &
-        (month(col("write_timestamp")) == filter_date.month) &
-        (dayofmonth(col("write_timestamp")) == filter_date.day) &
-        (hour(col("write_timestamp")) == filter_date.hour) &
-        (minute(col("write_timestamp")) == filter_date.minute)
-    )
-    ###
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ### Unit Test
 
@@ -177,19 +157,6 @@ display(df.transform(set_partitioning_cols))
 
 # COMMAND ----------
 
-############### SOLUTION ##############
-def set_partitioning_cols(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.\
-        withColumn("year", year(col("write_timestamp"))). \
-        withColumn("month", month(col("write_timestamp"))). \
-        withColumn("day", dayofmonth(col("write_timestamp")))
-    ###
-
-display(df.transform(set_partitioning_cols))
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## EXERCISE: Event Log: Write to Delta Lake
 # MAGIC Now that we have a function that sets some partitioning columns on our existing data, we need to partition our incoming data by those partitioning columns and write that to our output location (`working_directory + "/event_log"`).
@@ -207,20 +174,6 @@ print(f"Output Base Directory: {out_base_dir}")
 def write_event_log(input_df: DataFrame, output_base_dir: str):
     ### YOUR CODE HERE
     partition_cols = [None]
-    ###
-    input_df.repartition(1).write.partitionBy(*partition_cols).mode("append").format("delta").save(f"{output_base_dir}/event_log")
-
-write_event_log(df, output_base_dir=out_base_dir)
-
-
-
-# COMMAND ----------
-
-################ SOLUTION ################
-
-def write_event_log(input_df: DataFrame, output_base_dir: str):
-    ### YOUR CODE HERE
-    partition_cols = ["charge_point_id", "year", "month", "day"]
     ###
     input_df.repartition(1).write.partitionBy(*partition_cols).mode("append").format("delta").save(f"{output_base_dir}/event_log")
 
@@ -289,34 +242,6 @@ def write(input_df: DataFrame, output_base_dir: str):
     partition_cols = [None]
     ###
 
-    if input_df.count() > 0:
-        action, message_type = [(x.action, x.message_type) for x in input_df.limit(1).select("action", "message_type").collect()][0] # => There should just be one here
-        message_type_mapping = {
-            2: "Request",
-            3: "Response"
-        }
-        output_dir = f"{output_base_dir}/{action}{message_type_mapping[message_type]}"
-        print(f"Writing to {output_dir}")
-        input_df.transform(set_partitioning_cols).repartition(1).write.partitionBy(*partition_cols).mode("append").format("delta").save(f"{output_base_dir}/{action}{message_type_mapping[message_type]}")
-    else:
-        print(f"No records. Nothing to do here! \o/")
-
-
-
-write(meter_values_request_df, output_base_dir=out_base_dir)
-write(stop_transaction_request_df, output_base_dir=out_base_dir)
-write(start_transaction_request_df, output_base_dir=out_base_dir)
-write(start_transaction_response_df, output_base_dir=out_base_dir)
-
-# COMMAND ----------
-
-############ SOLUTION #############
-def write(input_df: DataFrame, output_base_dir: str):
-    
-    ### YOUR CODE HERE
-    partition_cols = ["charge_point_id", "year", "month", "day"]
-    ###
-    
     if input_df.count() > 0:
         action, message_type = [(x.action, x.message_type) for x in input_df.limit(1).select("action", "message_type").collect()][0] # => There should just be one here
         message_type_mapping = {

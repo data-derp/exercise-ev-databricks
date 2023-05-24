@@ -3,7 +3,7 @@
 # MAGIC # Delta Lake and our Domain (Bronze)
 # MAGIC In this exercise, we'll do the following:
 # MAGIC 1. Ingest from stream
-# MAGIC 2. Write to Avro and store in a dedicated storage location, partitioned by year, month, day, hour, and minute
+# MAGIC 2. Write to Delta Lake and store in a dedicated storage location, partitioned by year, month, day, hour, and minute
 # MAGIC
 # MAGIC ```
 # MAGIC root
@@ -99,7 +99,7 @@ def read_from_stream(input_df: DataFrame) -> DataFrame:
 
 # MAGIC %md
 # MAGIC ## EXERCISE: Set Partitioning Columns
-# MAGIC In order to write to Avro in partitions (year, month, day, hour, and minute), we must extract the partitioning data from the existing DataFrame by using the [year](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.year.html), [month](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.month.html), [dayofmonth](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.dayofmonth.html), [hour](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.hour.html), and [minute](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.minute.html) functions on the `write_timestamp` column to extract relevant metadata about the row.
+# MAGIC In order to write to Delta in partitions (year, month, day, hour, and minute), we must extract the partitioning data from the existing DataFrame by using the [year](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.year.html), [month](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.month.html), [dayofmonth](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.dayofmonth.html), [hour](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.hour.html), and [minute](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.functions.minute.html) functions on the `write_timestamp` column to extract relevant metadata about the row.
 # MAGIC
 # MAGIC ```
 # MAGIC root
@@ -138,8 +138,8 @@ test_set_partitioning_cols_unit(spark, set_partitioning_cols)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## EXERCISE: Write to Avro
-# MAGIC Now that we've prepared our partitioning column, we now can write our stream to Avro by using [writeStream](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.writeStream.html) and [partitionBy](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrameWriter.partitionBy.html).
+# MAGIC ## EXERCISE: Write to Delta
+# MAGIC Now that we've prepared our partitioning column, we now can write our stream to Delta by using [writeStream](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.writeStream.html) and [partitionBy](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrameWriter.partitionBy.html). Don't forget to set the partitioning columns!
 
 # COMMAND ----------
 
@@ -153,18 +153,7 @@ print(f"Checkpoint Directory: {out_dir}")
 
 # COMMAND ----------
 
-def write(input_df: DataFrame):
-    ### YOUR CODE HERE
-    partitioned_stream = input_df
-    ###
-
-    partitioned_stream.\
-        option("checkpointLocation", checkpoint_dir).\
-        option("path", out_dir).\
-        format("avro").\
-        start()
-
-write(set_partitioning_cols(read_from_stream(mock_data_df).transform(read_from_stream)))
+dbutils.fs.ls(f"{out_dir}/year=2023/month=5/day=24/hour=11/minute=55")
 
 # COMMAND ----------
 
