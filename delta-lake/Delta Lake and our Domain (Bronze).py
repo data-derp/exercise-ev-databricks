@@ -153,7 +153,21 @@ print(f"Checkpoint Directory: {out_dir}")
 
 # COMMAND ----------
 
-dbutils.fs.ls(f"{out_dir}/year=2023/month=5/day=24/hour=11/minute=55")
+def write(input_df: DataFrame, output_base_dir: str):
+    
+    ### YOUR CODE HERE
+    partition_cols = [None]
+    ###
+
+    input_df \
+        .writeStream \
+        .partitionBy(*partition_cols) \
+        .format("delta") \
+        .outputMode("append") \
+        .option("checkpointLocation", checkpoint_dir) \
+        .start(out_dir)
+        
+write(set_partitioning_cols(read_from_stream(mock_data_df).transform(read_from_stream)), out_dir)
 
 # COMMAND ----------
 
@@ -164,7 +178,7 @@ dbutils.fs.ls(f"{out_dir}/year=2023/month=5/day=24/hour=11/minute=55")
 
 # COMMAND ----------
 
-display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}/year=2023")))
+display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}")))
 
 # COMMAND ----------
 

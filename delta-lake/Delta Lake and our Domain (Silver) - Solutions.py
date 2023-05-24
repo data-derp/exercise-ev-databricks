@@ -4,7 +4,8 @@
 # MAGIC In the Silver layer, we'll clean-up and harmonise our data without massive reducing the dimensions of data:
 # MAGIC 1. Ingest data from the Bronze layer from the last minute
 # MAGIC 2. Transform (flatten, standardise, harmonise, deduplicate)
-# MAGIC 3. Write in Delta Lake to store in a dedicated storage location
+# MAGIC 3. Write the Event Log in the Delta Lake format to a dedicated storage location
+# MAGIC 4. Write several Delta Lake tables for each of the OCPP actions that we handle to a dedicated storage location
 # MAGIC
 # MAGIC **Note:** for this notebook to work as expected, make sure that the Bronze notebook is running/streaming.
 
@@ -102,7 +103,7 @@ test_read_partition_unit(spark, read_partition)
 
 # MAGIC %md
 # MAGIC ## EXERCISE: Read from Delta
-# MAGIC Now, we'll use the selector function we just created to query the Bronze Delta storage location to fetch the data for the previous minute (relative to now).
+# MAGIC Now, we'll use the selector function we just created to query the Bronze Delta storage location to fetch the data for the previous minute (relative to now). There's no code updates for you here, just run the code blocks.
 # MAGIC
 # MAGIC **Note:** In our other exercises, we read in pre-determined data to ensure consistent results. This exercise is different because eventually we'll use this notebook to process data from the Bronze layer in real-time.
 
@@ -113,7 +114,7 @@ bronze_input_location = working_directory.replace("silver", "bronze")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Alter the path to explore the data from the Bronze output directory.
+# MAGIC Alter the path to explore the data from the Bronze output directory. Make sure the Bronze notebook is streaming data or nothing will appear!
 
 # COMMAND ----------
 
@@ -132,7 +133,7 @@ def read_delta_from_last_minute(now: datetime, bronze_input_location: str) -> Da
         load(bronze_input_location).\
         transform(read_partition, filter_date)
   
-df = read_partition(datetime.now(tz=timezone.utc), f"{bronze_input_location}/output")
+df = read_delta_from_last_minute(datetime.now(tz=timezone.utc), f"{bronze_input_location}/output")
 
 df.show()
 
@@ -144,13 +145,7 @@ df.show()
 
 # COMMAND ----------
 
-def test_read_delta_from_last_minute_e2e(input_df: DataFrame, **kwargs):
-    result = input_df
-    result.show()
-    result.repartition(1)
-    result_count = result.count()
-    expected_count = 1
-    assert result_count >= expected_count, f"expected >= {expected_count}, but got {result_count}"
+from exercise_ev_databricks_unit_tests.delta_lake_silver import test_read_delta_from_last_minute_e2e
 
 test_read_delta_from_last_minute_e2e(read_delta_from_last_minute(datetime.now(tz=timezone.utc), f"{bronze_input_location}/output"))
 
@@ -173,7 +168,8 @@ def set_partitioning_cols(input_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
     return input_df
 
-display(df.transform(set_partitioning_cols))
+# This command takes a while. Only uncomment if you want to see what your function does. Otherwise, just run the unit test.
+# display(df.transform(set_partitioning_cols))
 
 # COMMAND ----------
 
@@ -185,8 +181,20 @@ def set_partitioning_cols(input_df: DataFrame) -> DataFrame:
         withColumn("month", month(col("write_timestamp"))). \
         withColumn("day", dayofmonth(col("write_timestamp")))
     ###
+    
+# This command takes a while. Only uncomment if you want to see what your function does. Otherwise, just run the unit test.
+# display(df.transform(set_partitioning_cols))
 
-display(df.transform(set_partitioning_cols))
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC ### Unit Test
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.delta_lake_silver import test_set_partitioning_cols_unit
+
+test_set_partitioning_cols_unit(spark, set_partitioning_cols)
 
 # COMMAND ----------
 
@@ -195,6 +203,19 @@ display(df.transform(set_partitioning_cols))
 # MAGIC Now that we have a function that sets some partitioning columns on our existing data, we need to partition our incoming data by those partitioning columns and write that to our output location (`working_directory + "/event_log"`).
 # MAGIC
 # MAGIC In this exercise, we'll write the log of events to the Delta format (using the **append** mode) and partition by charge_point_id, year, month, and day (in that order).
+# MAGIC
+# MAGIC Target file structure:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- charge_point_id=1
+# MAGIC  |    |-- year=2023
+# MAGIC  |    |    |-- month=5
+# MAGIC  |    |    |    |-- day=23
+# MAGIC  |-- charge_point_id=2
+# MAGIC  |    |-- year=2023
+# MAGIC  |    |    |-- month=5
+# MAGIC  |    |    |    |-- day=23
+# MAGIC ```
 
 # COMMAND ----------
 
@@ -249,6 +270,17 @@ spark.read.format("delta").load(f"{out_base_dir}/event_log").where(col("charge_p
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### E2E Test
+
+# COMMAND ----------
+
+from exercise_ev_databricks_unit_tests.delta_lake_silver import test_event_log_files_exist_e2e
+
+test_event_log_files_exist_e2e(spark, dbutils=dbutils, out_dir=f"{out_base_dir}/event_log")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## EXERCISE: Transform
 # MAGIC Now that we've written our data event-log-style to a Delta Lake table, we'll focus our efforts to curate Delta Lake tables specifically for each OCPP action. We'll need separate tables for each OCPP action because the tables will eventually have different schemas, courtesy of the flattening action, similar to what we've done in the Batch Processing Silver exercise.
 # MAGIC
@@ -279,7 +311,32 @@ start_transaction_response_df.show()
 
 # MAGIC %md
 # MAGIC ## EXERCISE: Write Action Tables to Delta Lake
-# MAGIC Because 
+# MAGIC We'll need a second set of tables for each OCPP action written to Delta Lake and partitioned by charge_point_id, year, month, and day.
+# MAGIC
+# MAGIC Target file structure:
+# MAGIC ```
+# MAGIC root
+# MAGIC  |-- StartTransactionRequest
+# MAGIC  |    |-- charge_point_id=1
+# MAGIC  |    |    |-- year=2023
+# MAGIC  |    |    |    |-- month=5
+# MAGIC  |    |    |    |    |-- day=23
+# MAGIC  |-- StartTransactionRsponse
+# MAGIC  |    |-- charge_point_id=1
+# MAGIC  |    |    |-- year=2023
+# MAGIC  |    |    |    |-- month=5
+# MAGIC  |    |    |    |    |-- day=23
+# MAGIC  |-- StopTransactionRequest
+# MAGIC  |    |-- charge_point_id=1
+# MAGIC  |    |    |-- year=2023
+# MAGIC  |    |    |    |-- month=5
+# MAGIC  |    |    |    |    |-- day=23
+# MAGIC  |-- MeterValuesRequest
+# MAGIC  |    |-- charge_point_id=1
+# MAGIC  |    |    |-- year=2023
+# MAGIC  |    |    |    |-- month=5
+# MAGIC  |    |    |    |    |-- day=23
+# MAGIC ```
 
 # COMMAND ----------
 
