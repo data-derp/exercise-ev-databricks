@@ -185,3 +185,16 @@ display(spark.createDataFrame(dbutils.fs.ls(f"{out_dir}")))
 from exercise_ev_databricks_unit_tests.delta_lake_bronze import test_files_exist_e2e
 
 test_files_exist_e2e(spark, dbutils=dbutils, out_dir=out_dir)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Clean up
+# MAGIC Let the above streaming running while you complete the `Silver` exercise coming up next. When you're done with the `Silver` exercise, come back here to run the below code to turn of the stream (or we'll incur lots of costs)"
+
+# COMMAND ----------
+
+helpers.stop_all_streams(spark)
+
+dbutils.fs.rm(out_dir, True)
+dbutils.fs.rm(checkpoint_dir, True)

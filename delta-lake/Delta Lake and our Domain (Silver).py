@@ -378,3 +378,9 @@ create_table(
 
 # MAGIC %md
 # MAGIC Click on "Data" on the left panel in Databricks and find your db and table to preview the schema and data. Try running a query!
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Clean up Reminder !
+# MAGIC Please don't forget to stop your stream. Go back to the end of the Bronze notebook and run the last code block to stop all the streams in that notebook
