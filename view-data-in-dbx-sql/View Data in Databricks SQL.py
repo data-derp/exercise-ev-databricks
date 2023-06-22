@@ -42,7 +42,7 @@ print(f"Your current working directory is: {working_directory}")
 
 meter_values_request_url = "https://github.com/data-derp/exercise-ev-databricks/raw/main/batch-processing-silver/output/MeterValuesRequest/part-00000-tid-468425781006758111-f9d48bc3-3b4c-497e-8e9c-77cf63db98f8-207-1-c000.snappy.parquet"
 
-meter_values_request_filepath = helpers.download_to_local_dir(url)
+meter_values_request_filepath = helpers.download_to_local_dir(meter_values_request_url)
 
 # COMMAND ----------
 
