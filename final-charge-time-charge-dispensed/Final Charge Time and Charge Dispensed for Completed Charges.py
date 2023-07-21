@@ -418,7 +418,7 @@ test_convert_start_transaction_response_json_e2e(
 # MAGIC  |-- id_tag: string  (nullable = true)
 # MAGIC  |-- meter_start: integer  (nullable = true)
 # MAGIC  |-- timestamp: string  (nullable = true)
-# MAGIC  |-- reservation_id: string  (nullable = true)
+# MAGIC  |-- reservation_id: integer  (nullable = true)
 # MAGIC ```
 
 # COMMAND ----------
