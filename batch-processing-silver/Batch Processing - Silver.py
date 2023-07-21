@@ -150,8 +150,11 @@ def start_transaction_request_unpack_json(input_df: DataFrame):
         StructField("reservation_id", IntegerType(), True),
     ])
     ### YOUR CODE HERE
-    return input_df
+    new_column_name: str = None
+    from_column_name: str = None
     ###
+    return input_df.withColumn(new_column_name,from_json(from_column_name, body_schema))
+
 
 display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json))
 
@@ -202,8 +205,18 @@ test_start_transaction_request_unpack_json_e2e(df.transform(start_transaction_re
 
 def start_transaction_request_flatten(input_df: DataFrame):
     ### YOUR CODE HERE
-    return input_df
+    connector_id_column_name: str = None
+    meter_start_column_name: str = None
+    timestamp_column_name: str = None
+    columns_to_drop: List[str] = [None, None]
     ###
+    return input_df.\
+        withColumn(connector_id_column_name, input_df.new_body.connector_id).\
+        withColumn("id_tag", input_df.new_body.id_tag).\
+        withColumn(meter_start_column_name, input_df.new_body.meter_start).\
+        withColumn(timestamp_column_name, input_df.new_body.timestamp).\
+        withColumn("reservation_id", input_df.new_body.reservation_id).\
+        drop(*columns_to_drop)
 
 display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten))
 
@@ -256,8 +269,10 @@ test_start_transaction_request_flatten_e2e(df.transform(start_transaction_reques
 from pyspark.sql.types import TimestampType
 def start_transaction_request_cast(input_df: DataFrame) -> DataFrame:
     ### YOU CODE HERE
-    return input_df
+    new_column_name: str = None
+    from_column_name: str = None
     ###
+    return input_df.withColumn(new_column_name, to_timestamp(col(from_column_name)))
 
 display(df.transform(start_transaction_request_filter).transform(start_transaction_request_unpack_json).transform(start_transaction_request_flatten).transform(start_transaction_request_cast))
 
@@ -298,8 +313,8 @@ test_start_transaction_request_cast_e2e(df.transform(start_transaction_request_f
 
 def start_transaction_response_filter(input_df: DataFrame):
     ### YOUR CODE HERE
-    action = None
-    message_type = None
+    action: str = None
+    message_type: int = None
     ###
     return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
 
@@ -364,8 +379,10 @@ def start_transaction_response_unpack_json(input_df: DataFrame):
         StructField("id_tag_info", id_tag_info_schema, True)
     ])
     ### YOUR CODE HERE
-    return input_df
+    new_column_name: str = None
+    from_column_name: str = None
     ###
+    return input_df.withColumn(new_column_name,from_json(col(from_column_name), body_schema))
     
 display(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json))
 
@@ -415,8 +432,15 @@ test_start_transaction_response_unpack_json_e2e(df.transform(start_transaction_r
 
 def start_transaction_response_flatten(input_df: DataFrame):
     ### YOUR CODE HERE
-    return input_df
+    transaction_id_column_name: str = None
+    drop_column_names: List[str] = [None, None]
     ###
+    return input_df.\
+        withColumn(transaction_id_column_name, input_df.new_body.transaction_id).\
+        withColumn("id_tag_info_status", input_df.new_body.id_tag_info.status).\
+        withColumn("id_tag_info_parent_id_tag", input_df.new_body.id_tag_info.parent_id_tag).\
+        withColumn("id_tag_info_expiry_date", input_df.new_body.id_tag_info.expiry_date).\
+        drop(*drop_column_names)
 
 display(df.transform(start_transaction_response_filter).transform(start_transaction_response_unpack_json).transform(start_transaction_response_flatten))
 
@@ -457,8 +481,8 @@ test_start_transaction_response_flatten_e2e(df.transform(start_transaction_respo
 
 def stop_transaction_request_filter(input_df: DataFrame):
     ### YOUR CODE HERE
-    action = None
-    message_type = None
+    action: str = None
+    message_type: int = None
     ###
     return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
 
@@ -525,8 +549,10 @@ def stop_transaction_request_unpack_json(input_df: DataFrame):
         StructField("transaction_data", ArrayType(StringType()), True)
     ])
     ### YOUR CODE HERE
-    return input_df
+    new_column_name: str = None
+    from_column_name: str = None
     ###
+    return input_df.withColumn(new_column_name,from_json(col(from_column_name), body_schema))
 
 
 display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json))
@@ -580,8 +606,19 @@ test_stop_transaction_request_unpack_json_e2e(df.transform(stop_transaction_requ
 
 def stop_transaction_request_flatten(input_df: DataFrame):
     ### YOUR CODE HERE
-    return input_df
+    meter_stop_column_name: str = None
+    timestamp_column_name: str = None
+    transaction_id_column_name: str = None
+    drop_column_names: List[str] = [None, None]
     ###
+    return input_df.\
+        withColumn(meter_stop_column_name, input_df.new_body.meter_stop).\
+        withColumn(timestamp_column_name, input_df.new_body.timestamp).\
+        withColumn(transaction_id_column_name, input_df.new_body.transaction_id).\
+        withColumn("reason", input_df.new_body.reason).\
+        withColumn("id_tag", input_df.new_body.id_tag).\
+        withColumn("transaction_data", input_df.new_body.transaction_data).\
+        drop(*drop_column_names)
 
 display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten))
 
@@ -635,8 +672,10 @@ test_stop_transaction_request_flatten_e2e(df.transform(stop_transaction_request_
 from pyspark.sql.types import TimestampType
 def stop_transaction_request_cast(input_df: DataFrame) -> DataFrame:
     ### YOU CODE HERE
-    return input_df
+    new_column_name: str = "timestamp"
+    from_column_name: str = "timestamp"
     ###
+    return input_df.withColumn(new_column_name, to_timestamp(col(from_column_name)))
 
 display(df.transform(stop_transaction_request_filter).transform(stop_transaction_request_unpack_json).transform(stop_transaction_request_flatten).transform(stop_transaction_request_cast))
 
@@ -646,7 +685,6 @@ display(df.transform(stop_transaction_request_filter).transform(stop_transaction
 # MAGIC #### Unit Test
 
 # COMMAND ----------
-
 
 from exercise_ev_databricks_unit_tests.batch_processing_silver import test_stop_transaction_request_cast_unit
 
@@ -679,10 +717,10 @@ test_stop_transaction_request_cast_e2e(df.transform(stop_transaction_request_fil
 
 def meter_values_request_filter(input_df: DataFrame):
     ### YOUR CODE HERE
-    action = None
-    message_type = None
+    action: str = None
+    message_type: int = None
     ###
-    return input_df.filter((input_df.action == "MeterValues") & (input_df.message_type == 2))
+    return input_df.filter((input_df.action == action) & (input_df.message_type == message_type))
 
 display(df.transform(meter_values_request_filter))
 
@@ -762,8 +800,11 @@ def meter_values_request_unpack_json(input_df: DataFrame):
         StructField("meter_value", ArrayType(meter_value_schema)),
     ])
     ### YOUR CODE HERE
-    return input_df
+    new_column_name: str = None
+    from_column_name: str = None
     ###
+
+    return input_df.withColumn(new_column_name, from_json(col(from_column_name), body_schema))
 
 display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json))
 
@@ -818,8 +859,18 @@ from pyspark.sql.types import DoubleType
 
 def meter_values_request_flatten(input_df: DataFrame):
     ### YOUR CODE HERE
-    return input_df
+    selected_column_names: List[str] = [None, None, None, None, None, None, None, None, None, None, None]
     ###
+    return input_df. \
+        select("*", explode("new_body.meter_value").alias("meter_value")). \
+        select("*", explode("meter_value.sampled_value").alias("sampled_value")). \
+        withColumn("timestamp", to_timestamp(col("meter_value.timestamp"))).\
+        withColumn("measurand", col("sampled_value.measurand")).\
+        withColumn("phase", col("sampled_value.phase")).\
+        withColumn("value", round(col("sampled_value.value").cast(DoubleType()),2)).\
+        withColumn("transaction_id", col("new_body.transaction_id")).\
+        withColumn("connector_id", col("new_body.connector_id")).\
+        select(*selected_column_names)
 
 display(df.transform(meter_values_request_filter).transform(meter_values_request_unpack_json).transform(meter_values_request_flatten))
 
@@ -867,9 +918,12 @@ print(out_dir)
 def write_start_transaction_request(input_df: DataFrame):
     output_directory = f"{out_dir}/StartTransactionRequest"
     ### YOUR CODE HERE
-    input_df
+    mode_name: str = None
     ###
-    
+    input_df.\
+        write.\
+        mode(mode_name).\
+        parquet(output_directory)
 
 write_start_transaction_request(df.\
     transform(start_transaction_request_filter).\
@@ -901,8 +955,12 @@ test_write_start_transaction_request(spark, dbutils, out_dir)
 def write_start_transaction_response(input_df: DataFrame):
     output_directory = f"{out_dir}/StartTransactionResponse"
     ### YOUR CODE HERE
-    input_df
+    mode_name: str = None
     ###
+    input_df.\
+        write.\
+        mode(mode_name).\
+        parquet(output_directory)
 
 write_start_transaction_response(df.\
     transform(start_transaction_response_filter).\
@@ -933,8 +991,12 @@ test_write_start_transaction_response(spark, dbutils, out_dir)
 def write_stop_transaction_request(input_df: DataFrame):
     output_directory = f"{out_dir}/StopTransactionRequest"
     ### YOUR CODE HERE
-    input_df
+    mode_name: str = None
     ###
+    input_df.\
+        write.\
+        mode(mode_name).\
+        parquet(output_directory)
 
 write_stop_transaction_request(df.\
     transform(stop_transaction_request_filter).\
@@ -966,8 +1028,12 @@ test_write_stop_transaction_request(spark, dbutils, out_dir)
 def write_meter_values_request(input_df: DataFrame):
     output_directory = f"{out_dir}/MeterValuesRequest"
     ### YOUR CODE HERE
-    input_df
+    mode_name: str = None
     ###
+    input_df.\
+        write.\
+        mode(mode_name).\
+        parquet(output_directory)
 
 write_meter_values_request(df.\
     transform(meter_values_request_filter).\
