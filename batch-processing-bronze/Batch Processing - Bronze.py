@@ -1,11 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Batch Processing - Bronze Layer
-# MAGIC 
+# MAGIC
 # MAGIC When creating long-term storage for analytical use cases, the first step is to ingest data for the source, with a shape as close as possible to the original shape. As the first step in our data processing journey, this allows us to 
 # MAGIC 1. create a "checkpoint" or "save zone" so that we can more easily debug issues and determine if there were issues at this step or downstream
 # MAGIC 2. replay data to downstream steps in the case that there is an error or interruption (data is idempotent)
-# MAGIC 
+# MAGIC
 # MAGIC In this exercise, we will:
 # MAGIC * ingest the raw data in a single pull
 # MAGIC * convert the data to parquet format (a format good for downstream reading)
@@ -92,8 +92,12 @@ def write(input_df: DataFrame):
     out_dir = f"{working_directory}/output/"
     
     ### YOUR CODE HERE ###
-    input_df
+    mode_name = None
     ###
+    input_df. \
+        write. \
+        mode(mode_name). \
+        parquet(out_dir)
     
 write(df)
 
