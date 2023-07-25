@@ -906,7 +906,7 @@ test_convert_start_stop_timestamp_to_timestamp_type_e2e(
 # MAGIC 
 # MAGIC Round to two decimal places (note: it might not appear as two decimal places in the resulting Dataframe as a result of rendering).
 # MAGIC 
-# MAGIC **Hint**: You can convert a timestamp type to seconds using the [cast](...) function and the `long` type. Of course, that's just seconds. :bulb:
+# MAGIC **Hint**: You can convert a timestamp type to seconds using the [cast](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.Column.cast.html) function and the `long` type. Of course, that's just seconds. :bulb:
 
 # COMMAND ----------
 
