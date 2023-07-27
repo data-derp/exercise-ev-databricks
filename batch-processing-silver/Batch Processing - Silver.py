@@ -248,6 +248,7 @@ test_start_transaction_request_flatten_e2e(df.transform(start_transaction_reques
 # MAGIC %md
 # MAGIC ### EXERCISE: StartTransaction Request Cast Columns
 # MAGIC Cast the `timestamp` column to [TimestampType](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.TimestampType.html?highlight=timestamptype#pyspark.sql.types.TimestampType) using [to_timestamp](https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.functions.to_timestamp.html?highlight=to_timestamp#pyspark.sql.functions.to_timestamp)
+# MAGIC Hint: You have to import the function from "pyspark.sql.functions" first.
 # MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
