@@ -347,15 +347,14 @@ test_calculate_total_energy_e2e(stop_transaction_request_df.\
 # MAGIC While it might seem easy on the surface, the logic is actually quite complex and will require you to spend some time understanding [Windows](https://sparkbyexamples.com/pyspark/pyspark-window-functions/) in order for you to complete it. Don't worry, take your time to think through the problem!
 # MAGIC
 # MAGIC We'll need to do this in a handful of steps:
-# MAGIC 1. Build a DataFrame from our MeterValue Request data with `transaction_id`, `timestamp`, `measurand`, `phase`, and `value` pulled out as columns (explode)
-# MAGIC  2. Return only rows with `measurand` = `Power.Active.Import` and `phase` = `Null`
+# MAGIC 1. Build a DataFrame from our MeterValue Request data with `transaction_id`, `timestamp`, `measurand`, `phase`, and `value`.
+# MAGIC 2. Return only rows with `measurand` = `Power.Active.Import` and `phase` = `Null`
 # MAGIC 3. Figure out how to represent in the DataFrame when a Charger is actively charging or not charging, calculate the duration of each of those groups, and sum the duration of the non charging groups as the `total_parking_time`
 # MAGIC
 # MAGIC **Notes**
 # MAGIC * There may be many solutions but the focus should be on using the Spark built-in API
 # MAGIC * You should be able to accomplish this entirely in DataFrames without for-expressions
 # MAGIC * You'll use the following functions
-# MAGIC   * [explode](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.explode.html?highlight=explode#pyspark.sql.functions.explode)
 # MAGIC   * [filter](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.filter.html?highlight=filter#pyspark.sql.DataFrame.filter)
 # MAGIC   * [Window](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.Window.html?highlight=window#pyspark.sql.Window)
 # MAGIC   * [groupBy](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.groupBy.html?highlight=groupby#pyspark.sql.DataFrame.groupBy)
