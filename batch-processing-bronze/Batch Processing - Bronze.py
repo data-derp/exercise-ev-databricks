@@ -104,7 +104,7 @@ write(df)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Let's inspect what we've created by commenting in and out one at the time the following lines:
+# MAGIC Let's inspect what we've created.
 
 # COMMAND ----------
 
