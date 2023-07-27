@@ -336,7 +336,7 @@ stop_transaction_json_df.new_body.transaction_id
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Unpack StartTransaction Response
-# MAGIC Using the `transaction_id` in the StopTransaction Requests, we can start to build out our target object by using the `transaction_id` to find the related StartTransaction Response, and then the related StartTransaction Request. Why the weird route? The StartTransaction Response has a `transaction_id` and the StartTransaction Request doesn't; but the StartTransaction Request has valuable information, namely `meter_start` and a `timestamp` value we can use as our `start_timestamp`. The StartTransaction Request and Response both have the same `message_id` by design so we can use that to locate the relevant records. We won't traverse this route until later, but it's important understand where we need to be.
+# MAGIC Using the `transaction_id` in the StopTransaction Requests, we can start to build out our target object by using the `transaction_id` to find the related StartTransaction Response, and then the related StartTransaction Request. Why the weird route? The StartTransaction Response has a `transaction_id` and the StartTransaction Request doesn't; but the StartTransaction Request has valuable information, namely `meter_start` and a `timestamp` value we can use as our `start_timestamp`. The StartTransaction Request and Response both have the same `message_id` by design so we can use that to locate the relevant records. We won't traverse this route until later, but it's important to understand where we need to be.
 # MAGIC 
 # MAGIC Very similarly to the previous exercise, we need to unpack the StartTransaction Response `body` column from a json string to json so we can eventually join our data on the `transaction_id` column.
 # MAGIC 
@@ -722,7 +722,7 @@ test_convert_start_stop_timestamp_to_timestamp_type_e2e(
 # MAGIC 
 # MAGIC Round to two decimal places (note: it might not appear as two decimal places in the resulting Dataframe as a result of rendering).
 # MAGIC 
-# MAGIC **Hint**: You can convert a timestamp type to seconds using the [cast](...) function and the `long` type. Of course, that's just seconds. :bulb:
+# MAGIC **Hint**: You can convert a timestamp type to seconds using the [cast](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.Column.cast.html) function and the `long` type. Of course, that's just seconds. :bulb:
 
 # COMMAND ----------
 
