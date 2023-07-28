@@ -2,16 +2,16 @@
 # MAGIC %md
 # MAGIC # Final Charge Time and Charge Dispensed for Completed Charges
 # MAGIC A CDR (Charge Data Record) is an important piece of information required by a CPO to invoice a customer for the charge dispensed in a transaction. A CDR contains information like:
-# MAGIC 
+# MAGIC
 # MAGIC | CDR field | Description |
 # MAGIC | --- | --- |
 # MAGIC | total_energy | How much charge was dispensed (StopTransactionRequest.meter_stop - StartTransactionRequest.meter_start) |
 # MAGIC | total_time |  How long the transaction was (StopTransactionRequest.timestamp - StartTransactionRequest.timestamp) | 
 # MAGIC | total_parking_time |  Total time of the transaction - time spent charging (because charging can be paused in the middle of a transaction) | 
-# MAGIC 
-# MAGIC 
+# MAGIC
+# MAGIC
 # MAGIC We can calculate this from our OCPP Event data. After the Charge Point has registered itself with the CSMS (Charging Station Management System), it sends information via the OCPP protocol about the Transactions, in the following order:
-# MAGIC 
+# MAGIC
 # MAGIC | OCPP Action | OCPP Message Type | Description | Payload |
 # MAGIC | --- | --- | --- | -- |
 # MAGIC | StartTransaction | Request | Event sent when a Transaction that has been initiated by the car (or by itself on a scheduled basis). This payload contains the start timestamp (`timestamp`) of the charge and the meter reading (`meter_start`) at the time of the event. This does not contain a transaction ID (but the response back to the Charge Point does). | [example json](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/StartTransactionRequest.json)
@@ -20,7 +20,7 @@
 # MAGIC | MeterValues | Response | A response sent back from the Central System to the Charge Point upon receiving a MeterValues request. | [example json](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/MeterValuesResponse.json) |
 # MAGIC | StopTransaction | Request | Event sent when the car has stopped a Transaction. It contains a transaction ID, the stop timestamp of the charge, and the meter reading (`meter_stop`) at the time of the event. | [example json](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/StopTransactionRequest.json) |
 # MAGIC | StopTransaction | Response | A response sent back from the Central System to the Charge Point upon receiving a MeterValues request. | [example json](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/StopTransactionResponse.json) |
-# MAGIC 
+# MAGIC
 # MAGIC \* The example payloads are decorated with a few extra fields including the `message_id`, `message_type`, and `charge_point_id` which generally comes from the CSMS. The actual payloads from the Charge Point are in the `body` field.
 # MAGIC
 # MAGIC In this exercise, we'll inspect the historical data that we have and create a CDR for all completed transactions.
@@ -66,7 +66,7 @@ helpers.clean_working_directory()
 # MAGIC %md
 # MAGIC ### The Final Shape of Data
 # MAGIC Before we start to ingest our data, it's helpful to know in what direction we're going. A good guideline is to know where you want to be and work backwards to your data sources to identify how we'll need to transform or reshape our data. 
-# MAGIC 
+# MAGIC
 # MAGIC **Target Schema**
 # MAGIC ```
 # MAGIC root
@@ -78,7 +78,7 @@ helpers.clean_working_directory()
 # MAGIC  |-- total_energy: double (nullable = true)
 # MAGIC  |-- total_parking_time: double (nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC #### Reflect
 # MAGIC Having looked at the example data in the table above, can you trace how to calculate these fields to the various OCPP events?
 
@@ -160,7 +160,7 @@ display(stop_transaction_request_df)
 
 # MAGIC %md
 # MAGIC #### Unit Test
-# MAGIC 
+# MAGIC
 # MAGIC **NOTE:** Inspect carefully what the unit test actually tests: it creates a DataFrame with mock data and calls only the function that it should be testing. For the purposes of this exercise, this is the only in-line unit test (for demonstrative purposes); the remainder of the tests are hidden as to not spoil the solutions of the exercise itself.
 
 # COMMAND ----------
@@ -249,13 +249,13 @@ stop_transaction_request_df.select(col("body.transaction_id"))
 
 # MAGIC %md
 # MAGIC What happened here? We can't select `"body.transaction_id"` if it is a `string` type.  But we CAN if it is read in as JSON. 
-# MAGIC 
+# MAGIC
 # MAGIC For reference, there are a [variety of ways of handling JSON in a Dataframe](https://sparkbyexamples.com/pyspark/pyspark-json-functions-with-examples/).
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 
+# MAGIC
 # MAGIC **Your turn!**
 # MAGIC Unpack the `body` column (currently a JSON string) for just the `StopTransaction` messages into a new column called `new_body` using the `with_column` and `from_json` functions and the following schema:
 # MAGIC ```
@@ -337,9 +337,9 @@ stop_transaction_json_df.new_body.transaction_id
 # MAGIC %md
 # MAGIC ### EXERCISE: Unpack StartTransaction Response
 # MAGIC Using the `transaction_id` in the StopTransaction Requests, we can start to build out our target object by using the `transaction_id` to find the related StartTransaction Response, and then the related StartTransaction Request. Why the weird route? The StartTransaction Response has a `transaction_id` and the StartTransaction Request doesn't; but the StartTransaction Request has valuable information, namely `meter_start` and a `timestamp` value we can use as our `start_timestamp`. The StartTransaction Request and Response both have the same `message_id` by design so we can use that to locate the relevant records. We won't traverse this route until later, but it's important to understand where we need to be.
-# MAGIC 
+# MAGIC
 # MAGIC Very similarly to the previous exercise, we need to unpack the StartTransaction Response `body` column from a json string to json so we can eventually join our data on the `transaction_id` column.
-# MAGIC 
+# MAGIC
 # MAGIC The schema of the resulting JSON should be as follows:
 # MAGIC ```
 # MAGIC root
@@ -409,9 +409,9 @@ test_convert_start_transaction_response_json_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Unpack StartTransaction Request
 # MAGIC We know we'll need to extract a couple of fields from the StartTransaction Request events, namely `meter_start` and `timestamp` (eventually our `start_timestamp` in the target object).
-# MAGIC 
+# MAGIC
 # MAGIC As we have done with the StopTransaction Request and the StartTransaction Response, unpack the StartTransaction Request `body` column (currently a json string) into a new JSON column called `new_body` with the following schema:
-# MAGIC 
+# MAGIC
 # MAGIC ```
 # MAGIC root
 # MAGIC  |-- connector_id: integer (nullable = true)
@@ -476,9 +476,9 @@ test_convert_start_transaction_request_json_e2e(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### EXERCISE: Find the matching StartTransaction Requests (Left Join)
-# MAGIC Now that we have unpacked the events for StartTransaction Request and StartTransaction Response, we can find our matching StartTransaction Request for each StartTransaction Response by executing a **left** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction Response and the StartTransaction Request on the column `message_id`. 
-# MAGIC 
+# MAGIC ### EXERCISE: Find the matching StartTransaction Requests (Inner Join)
+# MAGIC Now that we have unpacked the events for StartTransaction Request and StartTransaction Response, we can find our matching StartTransaction Request for each StartTransaction Response by executingn a **inner** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction Response and the StartTransaction Request on the column `message_id`. 
+# MAGIC
 # MAGIC Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
 # MAGIC * charge_point_id
 # MAGIC * transaction_id
@@ -529,7 +529,7 @@ test_join_with_start_transaction_request_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Join Start and Stop Data
 # MAGIC Now that we have our StartTransaction events joined together, we can now join our DataFrame with the StopTransaction Request data that contains `meter_stop` and `timestamp`.
-# MAGIC 
+# MAGIC
 # MAGIC Executing a **left** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between StopTransaction Request and the StartTransaction DataFrame on the column `new_body.transaction_id`. Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
 # MAGIC * charge_point_id
 # MAGIC * transaction_id
@@ -537,7 +537,7 @@ test_join_with_start_transaction_request_e2e(
 # MAGIC * meter_stop
 # MAGIC * start_timestamp
 # MAGIC * stop_timestamp (the `timestamp` column from StopTransaction Request)
-# MAGIC 
+# MAGIC
 # MAGIC #### Reflect
 # MAGIC Do we join the StartTransaction DataFrame to our StopTransaction Request data or vice versa?
 
@@ -604,7 +604,7 @@ test_join_stop_with_start_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Convert the start_timestamp and stop_timestamp fields to timestamp type
 # MAGIC At some point soon, we'll need to calculate the time in hours between the `start_timestamp` and `stop_timestamp` columns. However, note that both columns are of type `string`
-# MAGIC 
+# MAGIC
 # MAGIC ```
 # MAGIC root
 # MAGIC  |-- charge_point_id: string (nullable = true)
@@ -696,7 +696,7 @@ test_convert_start_stop_timestamp_to_timestamp_type_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Calculate the Charge Transaction Duration (total_time)
 # MAGIC Now that we have our `start_timestamp` and `stop_timestamp` columns in the appropriate type, we now can calculate the time in hours of the charge by subtracting the `start_timestamp` from the `stop_timestamp` column and doing some arithmetic.
-# MAGIC 
+# MAGIC
 # MAGIC Current schema:
 # MAGIC ```
 # MAGIC root
@@ -707,7 +707,7 @@ test_convert_start_stop_timestamp_to_timestamp_type_e2e(
 # MAGIC  |-- start_timestamp: timestamp (nullable = true)
 # MAGIC  |-- stop_timestamp: timestamp (nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC Expected schema:
 # MAGIC ```
 # MAGIC root
@@ -719,9 +719,9 @@ test_convert_start_stop_timestamp_to_timestamp_type_e2e(
 # MAGIC  |-- stop_timestamp: timestamp (nullable = true)
 # MAGIC  |-- total_time: double (nullable = true) 
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC Round to two decimal places (note: it might not appear as two decimal places in the resulting Dataframe as a result of rendering).
-# MAGIC 
+# MAGIC
 # MAGIC **Hint**: You can convert a timestamp type to seconds using the [cast](https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.sql.Column.cast.html) function and the `long` type. Of course, that's just seconds. :bulb:
 
 # COMMAND ----------
@@ -793,7 +793,7 @@ test_calculate_total_time_hours_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Calculate total_energy
 # MAGIC Let's add a column for the `total_energy`. Subtract `meter_start` from `meter_stop`.
-# MAGIC 
+# MAGIC
 # MAGIC Current schema:
 # MAGIC ```
 # MAGIC root
@@ -805,7 +805,7 @@ test_calculate_total_time_hours_e2e(
 # MAGIC  |-- stop_timestamp: timestamp (nullable = true)
 # MAGIC  |-- total_time: double (nullable = true) 
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC Expected schema:
 # MAGIC ```
 # MAGIC root
@@ -890,7 +890,7 @@ test_calculate_total_energy_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Unpack JSON in MeterValues
 # MAGIC The last piece of data that we need to add to this DataFrame is the amount of charge dispensed. This piece of data comes from the MeterValues action where the `measurand` is `Energy.Active.Import.Register`. The JSON is actually quite nested ([example](https://github.com/data-derp/exercise-ev-databricks/blob/main/sample-data/metervalues.json)) with a schema of:
-# MAGIC 
+# MAGIC
 # MAGIC ```
 # MAGIC root
 # MAGIC  |-- body: struct (nullable = true)
@@ -908,10 +908,10 @@ test_calculate_total_energy_e2e(
 # MAGIC  |    |    |    |    |    |-- phase: string (nullable = true)
 # MAGIC  |    |    |    |    |    |-- unit: string (nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC Very similarly to what we've done already for our `StartTransaction` Request and Response, we'll need to unpack this JSON string into JSON using the `from_json` function.
-# MAGIC 
-# MAGIC 
+# MAGIC
+# MAGIC
 # MAGIC Target Schema:
 # MAGIC ```
 # MAGIC root
@@ -934,7 +934,7 @@ test_calculate_total_energy_e2e(
 # MAGIC  |    |    |    |    |    |-- phase: string (nullable = true)
 # MAGIC  |    |    |    |    |    |-- unit: string (nullable = true)
 # MAGIC  ```
-# MAGIC 
+# MAGIC
 # MAGIC Let's quickly look at the MeterValues data that we have:
 
 # COMMAND ----------
@@ -994,18 +994,18 @@ test_convert_metervalues_to_json_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Calculate total_parking_time
 # MAGIC In our target object, there is a field `total_parking_time` which is the number of hours that the EV is plugged in but not charging. This denoted in the **Meter Values Request** by the `measurand` = `Power.Active.Import` where `phase` is `None` or `null` and a value of `0`.
-# MAGIC 
+# MAGIC
 # MAGIC While it might seem easy on the surface, the logic is actually quite complex and will require you to spend some time understanding [Windows](https://sparkbyexamples.com/pyspark/pyspark-window-functions/) in order for you to complete it. Don't worry, take your time to think through the problem!
-# MAGIC 
+# MAGIC
 # MAGIC We'll need to do this in a handful of steps:
 # MAGIC 1. Build a DataFrame from our MeterValue Request data with `transaction_id`, `timestamp`, `measurand`, `phase`, and `value` pulled out as columns (explode)
 # MAGIC 2. Return only rows with `measurand` = `Power.Active.Import` and `phase` = `Null`
 # MAGIC 3. Figure out how to represent in the DataFrame when a Charger is actively charging or not charging, calculate the duration of each of those groups, and sum the duration of the non charging groups as the `total_parking_time`
-# MAGIC 
+# MAGIC
 # MAGIC **Notes**
 # MAGIC * There may be many solutions but the focus should be on using the Spark built-in API
 # MAGIC * You should be able to accomplish this entirely in DataFrames without for-expressions
-# MAGIC 
+# MAGIC
 # MAGIC **Target Schema**
 # MAGIC ```
 # MAGIC root
@@ -1019,7 +1019,7 @@ test_convert_metervalues_to_json_e2e(
 # MAGIC  |-- total_energy: double (nullable = true)
 # MAGIC  |-- total_parking_time: double(nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC **Hints**
 # MAGIC * For deeply nested JSON, consider [exploding](https://sparkbyexamples.com/pyspark/pyspark-explode-array-and-map-columns-to-rows/) them out in order to access the values
 
@@ -1107,14 +1107,14 @@ test_calculate_total_parking_time_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: Join with Target DataFrame
 # MAGIC Now that we have the `total_parking_time`, we can join that with our Target Dataframe (where we stored our Stop/Start Transaction data).
-# MAGIC 
+# MAGIC
 # MAGIC Recall that our newly transformed DataFrame has the following schema:
 # MAGIC ```
 # MAGIC root
 # MAGIC  |-- transaction_id: integer (nullable = true)
 # MAGIC  |-- total_parking_time: double (nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC And our target dataframe:
 # MAGIC ```
 # MAGIC root
@@ -1199,7 +1199,7 @@ test_join_with_target_df_e2e(
 # MAGIC %md
 # MAGIC ### EXERCISE: All together now!
 # MAGIC We took a few turns and side-quests but our join brought together all of the fields that we originally sought.
-# MAGIC 
+# MAGIC
 # MAGIC Our current schema:
 # MAGIC ```
 # MAGIC root
@@ -1213,9 +1213,9 @@ test_join_with_target_df_e2e(
 # MAGIC  |-- total_energy: double (nullable = true)
 # MAGIC  |-- total_parking_time: double (nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC Let's clean up our DataFrame so that we're left with the following schema:
-# MAGIC 
+# MAGIC
 # MAGIC ```
 # MAGIC root
 # MAGIC  |-- charge_point_id: string (nullable = true)
@@ -1303,8 +1303,4 @@ final_df = df.transform(return_stop_transaction_requests). \
     transform(cleanup_columns)
 
 display(result)
-
-
-# COMMAND ----------
-
 
