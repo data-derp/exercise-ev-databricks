@@ -477,7 +477,7 @@ test_convert_start_transaction_request_json_e2e(
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Find the matching StartTransaction Requests (Inner Join)
-# MAGIC Now that we have unpacked the events for StartTransaction Request and StartTransaction Response, we can find our matching StartTransaction Request for each StartTransaction Response by executingn a **inner** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction Response and the StartTransaction Request on the column `message_id`. 
+# MAGIC Now that we have unpacked the events for StartTransaction Request and StartTransaction Response, we can find our matching StartTransaction Request for each StartTransaction Response by executing an **inner** [join](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.join.html) between the StartTransaction Response and the StartTransaction Request on the column `message_id`. 
 # MAGIC
 # MAGIC Make sure to return the following columns using the [select](https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.DataFrame.select.html?highlight=select) function:
 # MAGIC * charge_point_id
