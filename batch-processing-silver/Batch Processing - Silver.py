@@ -846,6 +846,7 @@ test_meter_values_request_unpack_json_e2e(df.transform(meter_values_request_filt
 # MAGIC  |-- action: string (nullable = true)
 # MAGIC  |-- write_timestamp: string (nullable = true)
 # MAGIC  |-- transaction_id: integer (nullable = true)
+# MAGIC  |-- connector_id: string (nullable = true)
 # MAGIC  |-- timestamp: timestamp (nullable = true)
 # MAGIC  |-- measurand: string (nullable = true)
 # MAGIC  |-- phase: string (nullable = true)
