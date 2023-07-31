@@ -666,7 +666,7 @@ test_join_with_start_transaction_request_e2e(
 # MAGIC Do we join the StartTransaction DataFrame to our StopTransaction Request data or vice versa?
 # MAGIC
 # MAGIC #### Debug
-# MAGIC Does your test fail? Sometimes mocked data in a unit test does not have all of the properties that you are expecting. Try to printSchema() and compare the output of the command with the output of the test. See any differences?
+# MAGIC Does your test fail? Sometimes mocked data in a unit test does not have all of the properties that you are expecting. Try to `printSchema()` and compare the output of the command with the output of the test. See any differences?
 
 # COMMAND ----------
 
