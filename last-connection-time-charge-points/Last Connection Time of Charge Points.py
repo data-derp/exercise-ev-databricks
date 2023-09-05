@@ -2,9 +2,9 @@
 # MAGIC %md
 # MAGIC # Last Connection Time of Charge Points
 # MAGIC After the Charge Point has registered itself with the CSMS, it sends OCPP messages to the CSMS (for example: StartTransaction, StopTransaction, MeterValues, etc). If there are no OCPP-messages sent during the heartbeat interval, it sends a Heartbeat message to denote its responsiveness. 
-# MAGIC 
+# MAGIC
 # MAGIC When was the last connection time of each of our Charge Points?
-# MAGIC 
+# MAGIC
 # MAGIC We can find out when it was last connected by finding the timestamp of the most recent message from any OCPP action for that Charge Point.
 
 # COMMAND ----------
@@ -59,16 +59,16 @@ helpers.clean_working_directory()
 
 # MAGIC %md
 # MAGIC ### EXERCISE: Read Data
-# MAGIC 
+# MAGIC
 # MAGIC #### Context
 # MAGIC The first step in handling data in Spark (especially if the data exists already) is to read that data into Spark as a DataFrame. Data can come in various formats (CSV, JSON, Parquet, Avro, Delta Lake, etc) and Spark has several API methods to read these specific formats.
-# MAGIC 
+# MAGIC
 # MAGIC | Format | Example |
 # MAGIC | --- | --- |
 # MAGIC | CSV | df = spark.read.format("csv").load("/tmp/data.csv") |
 # MAGIC | JSON | df = spark.read.format("json").load("/tmp/data.json") |
 # MAGIC | Parquet | df = spark.format("parquet").load("/tmp/data.parquet") |
-# MAGIC 
+# MAGIC
 # MAGIC There are additional options that can be provided:
 # MAGIC ```
 # MAGIC spark.read.format("csv") \
@@ -77,9 +77,9 @@ helpers.clean_working_directory()
 # MAGIC       .option("delimiter", ",") \
 # MAGIC       .load("/tmp/data.csv")
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC In this example, we are reading a CSV file, denoting that there is a header row, we expect our delimiter to be a comma, and we would like Spark to simply guess (infer) what the schema of the file is. Letting Spark infer the schema *works* but doesn't necessarily yield the most accurate reads.
-# MAGIC 
+# MAGIC
 # MAGIC It is recommended to define a **schema** and supply that at the time of reading:
 # MAGIC ```   
 # MAGIC custom_schema = StructType([
@@ -93,7 +93,7 @@ helpers.clean_working_directory()
 # MAGIC   .schema(custom_schema) \
 # MAGIC   .load("/tmp/data.csv")
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC It's worth noting that Spark (at the time of writing) cannot read directly from a URL, only File Systems. This works great when your data is in your local filestore, HDFS, or blob storage like AWS S3, but not when you need to pull fresh data remotely.
 
 # COMMAND ----------
@@ -122,10 +122,12 @@ filepath = helpers.download_to_local_dir(url)
 
 # MAGIC %md
 # MAGIC 2. **Your Turn**: Use the `spark.read.format("csv")` function to read in the file that we've just downloaded. Don't forget to include the delimiter, schema, and the fact that there is a header.
-# MAGIC 
+# MAGIC
 # MAGIC Schema:
 # MAGIC ```
 # MAGIC root
+# MAGIC  |-- message_id: string (nullable = true) 
+# MAGIC  |-- message_type: integer (nullable = true) 
 # MAGIC  |-- charge_point_id: string (nullable = true)
 # MAGIC  |-- write_timestamp: string (nullable = true)
 # MAGIC  |-- action: string (nullable = true)
@@ -178,7 +180,7 @@ test_create_dataframe()
 
 # MAGIC %md
 # MAGIC In order to find the most recent message from each Charge Point, we need to sort each of the Charge Point messages by the `write_timestamp` field. However, note that the `write_timestamp` field is a String:
-# MAGIC 
+# MAGIC
 # MAGIC ```
 # MAGIC root
 # MAGIC  |-- charge_point_id: string (nullable = true)
@@ -186,7 +188,7 @@ test_create_dataframe()
 # MAGIC  |-- action: string (nullable = true)
 # MAGIC  |-- body: string (nullable = true)
 # MAGIC ```
-# MAGIC 
+# MAGIC
 # MAGIC Therefore, a sort on `write_timestamp` will yield an alphabetical sorting as opposed to a proper time-based sorting.
 
 # COMMAND ----------
