@@ -170,7 +170,7 @@ test_unpack_json_from_status_notification_request_unit(spark, unpack_json_from_s
 # MAGIC root
 # MAGIC  |-- charge_point_id: string (nullable = true)
 # MAGIC  |-- status: string (nullable = true)
-# MAGIC  |-- timestamp: string (nullable = true)
+# MAGIC  |-- timestamp: timestamp (nullable = true)
 # MAGIC ```
 
 # COMMAND ----------
