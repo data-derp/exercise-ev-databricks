@@ -259,7 +259,7 @@ test_start_transaction_request_flatten_e2e(df.transform(start_transaction_reques
 # MAGIC  |-- action: string (nullable = true)
 # MAGIC  |-- write_timestamp: string (nullable = true)
 # MAGIC  |-- connector_id: integer (nullable = true)
-# MAGIC  |-- id_tag: integer (nullable = true)
+# MAGIC  |-- id_tag: string (nullable = true)
 # MAGIC  |-- meter_start: integer (nullable = true)
 # MAGIC  |-- timestamp: timestamp (nullable = true)  #=> updated
 # MAGIC  |-- reservation_id: integer (nullable = true)
