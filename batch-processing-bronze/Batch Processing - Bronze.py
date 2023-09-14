@@ -121,3 +121,13 @@ from exercise_ev_databricks_unit_tests.batch_processing_bronze import test_write
 
 test_write_e2e(dbutils.fs.ls(f"{working_directory}/output"), spark, display)
 
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Reflect
+# MAGIC (Answers in the solutions notebook but give a thought to these questions before looking at the solution and see if the answers match yours !)
+# MAGIC * How many in-memory partitions were created as a result of the write ?  
+# MAGIC * How much time does it takes to write and why ?  
+# MAGIC * How many minutes were spent rendering in the notebook as opposed to the actual write ?  
+# MAGIC
