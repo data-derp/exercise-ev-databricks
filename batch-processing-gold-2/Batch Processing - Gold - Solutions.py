@@ -124,7 +124,7 @@ display(start_transaction_response_df.transform(match_start_transaction_requests
 ########## SOLUTION ##########
 def match_start_transaction_requests_with_responses(input_df: DataFrame, join_df: DataFrame) -> DataFrame:
     ### YOUR CODE HERE
-    join_type: str = "inner"
+    join_type: str = "left"
     ###
     return input_df.\
         join(join_df, input_df.message_id == join_df.message_id, join_type).\
