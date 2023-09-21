@@ -91,14 +91,14 @@ create_table(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 1. Navigate to Databricks SQL using the drop down and clicking on "Data". **Hint:** right click on the elements to open it in a new tab.
+# MAGIC 1. Navigate to Databricks SQL using the drop down and clicking on either "Data" or "SQL Editor" (you may not have a "Data" option). **Hint:** right click on the elements to open it in a new tab.
 # MAGIC
 # MAGIC ![navi-to-dbx-sql.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/view-data-in-dbx-sql/assets/navi-to-file-explorer.png?raw=true)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 2. Check that your database and table exists. It might take some time, while your Warehouse cluster starts up (by default).
+# MAGIC 2. Check that your database and table exists under "hive_metastore" in the Catalog. It might take some time, while your Warehouse cluster starts up (by default).
 # MAGIC
 # MAGIC ![table-present.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/view-data-in-dbx-sql/assets/table-present.png?raw=true)
 
