@@ -91,7 +91,7 @@ create_table(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 1. Navigate to Databricks SQL using the drop down and clicking on "Data". **Hint:** right click on the elements to open it in a new tab.
+# MAGIC 1. Click on the "Catalog" link from the side bar. **Hint:** right click on the elements to open it in a new tab.
 # MAGIC
 # MAGIC ![navi-to-dbx-sql.png](https://github.com/data-derp/exercise-ev-databricks/blob/main/view-data-in-dbx-sql/assets/navi-to-file-explorer.png?raw=true)
 
