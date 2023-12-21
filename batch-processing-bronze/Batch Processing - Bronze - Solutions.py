@@ -144,13 +144,13 @@ test_write_e2e(dbutils.fs.ls(f"{working_directory}/output"), spark, display)
 
 # MAGIC %md
 # MAGIC ## Reflect
-# MAGIC * How many in-memory partitions were created as a result of the write ?  
+# MAGIC * How many in-memory partitions were created as a result of the write in CMD 11 above ?  
 # MAGIC **Answer:** Well, the writes usually engage one of the worker machine's core to process output to the disk, and therefore only one task. You can check this out in various ways as follows:  
 # MAGIC   a) Go to `View`-> `View Spark UI` in this notebook and checkout the details with respect to Job number in `CMD 12` above.   
 # MAGIC   b) Checkout the number of `part-0000` files in `CMD 14` above.  
 # MAGIC   c) In this notebook on the left hand side, go to `Catalog`-> `Browse DBFS`-> `/FileStore/<your_user_name>/batch_processing_bronze_ingest/output` and checkout the number of files there. It should be 1 only.  
 # MAGIC * How much time does it takes to write and why ?  
-# MAGIC **Answer:** It should ideally take from about 30 seconds to half a minute to write the data. It takes that much time because the worker machine is writing data to the disk on S3
-# MAGIC * How many minutes were spent rendering in the notebook as opposed to the actual write ?  
-# MAGIC **Answer:** Ideally half a minute to write the data and a few seconds more to render it to the notebook
+# MAGIC **Answer:** It should ideally take from about 20 seconds to half a minute to write the data. It takes that much time because the worker machine is writing data to the disk on S3
+# MAGIC * How many minutes were spent showing the response in the notebook as opposed to the actual write ?
+# MAGIC **Answer:** Ideally half a minute to write the data and a few seconds more to show it back in the notebook
 # MAGIC
