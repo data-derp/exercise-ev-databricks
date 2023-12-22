@@ -319,8 +319,13 @@ def stop_transaction_body_schema():
     ])
     
 def convert_stop_transaction_request_json(input_df: DataFrame) -> DataFrame:
-    ### YOUR CODE HERE
-    return input_df.withColumn("new_body",from_json(col("body"), stop_transaction_body_schema()))
+    ### YOUR CODE HERE (Two Solution below, either of them should work with the below unit and E2E Test Cases)
+        # Solution 1 - As per what is suggested in the link in CMD 27
+        # return input_df.withColumn("new_body",from_json(input_df.body, stop_transaction_body_schema())) 
+
+        # Solution 2 - As per what you might see in the Pyspark API documentation
+        return input_df.withColumn("new_body",from_json(col("body"), stop_transaction_body_schema()))
+        
     ###
 
 display(df.transform(return_stop_transaction_requests).transform(convert_stop_transaction_request_json))
