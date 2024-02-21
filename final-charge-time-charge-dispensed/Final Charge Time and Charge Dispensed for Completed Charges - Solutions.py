@@ -1717,5 +1717,5 @@ final_df = df.transform(return_stop_transaction_requests). \
     transform(join_with_target_df, df.filter((df.action == "MeterValues") & (df.message_type == 2)).transform(convert_metervalues_to_json).transform(reshape_meter_values).transform(calculate_total_parking_time)).\
     transform(cleanup_columns)
 
-display(result)
+display(final_df)
 
